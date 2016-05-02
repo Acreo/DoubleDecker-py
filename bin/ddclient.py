@@ -283,7 +283,7 @@ class SecureCli(ClientSafe):
         self.update_main_text()
         self.main.original_widget = self.menu()
 
-    def exit_program(self):
+    def exit_program(self, *args):
         self.shutdown()
         raise urwid.ExitMainLoop()
 

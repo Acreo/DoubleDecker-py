@@ -379,7 +379,8 @@ class ClientSafe(interface.Client):
                 self._nonce[index] = 0
                 index -= 1
 
-    def _cli_usage(self):
+    @staticmethod
+    def _cli_usage():
         print("Commands: ")
         print("help                     - show this help")
         print("send        [client] [message] - send an encrypted message to client")
