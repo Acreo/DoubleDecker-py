@@ -35,7 +35,9 @@ class ClientSafe(interface.Client):
         try:
             f = open(filename)
         except:
-            logging.critical("Could not find key for customer, file: %s", filename)
+            logging.critical(
+                "Could not find key for customer, file: %s",
+                filename)
             self.shutdown()
             raise RuntimeError("Keyfile not found!")
         key = json.load(f)
@@ -59,7 +61,8 @@ class ClientSafe(interface.Client):
                 encoder=nacl.encoding.Base64Encoder)
             self._hash = key['public']['hash'].encode()
             del key['public']
-            # create a nacl.public.Box for each customers in a dict, e.g. self.cust_boxes[a] for customer a
+            # create a nacl.public.Box for each customers in a dict, e.g.
+            # self.cust_boxes[a] for customer a
             self._cust_boxes = dict()
             for hash_ in key:
                 cust_public_key = nacl.public.PublicKey(
@@ -98,7 +101,7 @@ class ClientSafe(interface.Client):
         :raise SyntaxError:
         """
         if self._state != DD.S_REGISTERED:
-            raise (ConnectionError("Not registered"))
+            raise ConnectionError
 
         scope = scope.strip().lower()
         if scope == 'all':
@@ -115,7 +118,8 @@ class ClientSafe(interface.Client):
             # check that scope only contains numbers and slashes
             scopestr = scope
         else:
-            raise SyntaxError("Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
+            raise SyntaxError(
+                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
 
         if (topic, scopestr) in self._subscriptions:
             logging.warning("Already subscribed to %s %s", topic, scopestr)
@@ -127,7 +131,9 @@ class ClientSafe(interface.Client):
         else:
             logging.debug("Subscribing to %s %s", topic, scopestr)
 
-        self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
+        self._send(
+            DD.bCMD_SUB, [
+                self._cookie, topic.encode(), scopestr.encode()])
 
     def unsubscribe(self, topic, scope):
         """
@@ -137,7 +143,7 @@ class ClientSafe(interface.Client):
         :raise SyntaxError:
         """
         if self._state != DD.S_REGISTERED:
-            raise (ConnectionError("Not registered"))
+            raise ConnectionError
 
         scope = scope.strip().lower()
         if scope == 'all':
@@ -154,7 +160,8 @@ class ClientSafe(interface.Client):
             # check that scope only contains numbers and slashes
             scopestr = scope
         else:
-            raise SyntaxError("Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
+            raise SyntaxError(
+                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
         if scopestr == "noscope":
             logging.debug("Unsubscribing from %s", topic)
         else:
@@ -165,7 +172,9 @@ class ClientSafe(interface.Client):
             logging.warning("Not subscribed to %s %s !", topic, scopestr)
             return
 
-        self._send(DD.bCMD_UNSUB,[self._cookie, topic.encode(), scopestr.encode()])
+        self._send(
+            DD.bCMD_UNSUB, [
+                self._cookie, topic.encode(), scopestr.encode()])
 
     def publish(self, topic, message):
         """
@@ -175,7 +184,7 @@ class ClientSafe(interface.Client):
         :raise (ConnectionError("Not registered")):
         """
         if self._state != DD.S_REGISTERED:
-            raise (ConnectionError("Not registered"))
+            raise ConnectionError
         if isinstance(topic, str):
             topic = topic.encode('utf8')
         if isinstance(message, str):
@@ -193,7 +202,7 @@ class ClientSafe(interface.Client):
         :raise (ConnectionError("Not registered")):
         """
         if self._state != DD.S_REGISTERED:
-            raise (ConnectionError("Not registered"))
+            raise ConnectionError
         if isinstance(topic, str):
             topic = topic.encode('utf8')
         if isinstance(message, str):
@@ -211,7 +220,7 @@ class ClientSafe(interface.Client):
         :raise (ConnectionError("Not registered")):
         """
         if self._state != DD.S_REGISTERED:
-            raise (ConnectionError("Not registered"))
+            raise ConnectionError
 
         if self._customer == b'public':
             dst_is_public = True
@@ -220,8 +229,9 @@ class ClientSafe(interface.Client):
                 customer_dst = split[0]
                 if customer_dst in self._cust_boxes:
                     dst_is_public = False
-            except:
-                pass
+            except Exception as e:
+                logging.warning("exception caught : {}".format(
+                    e.message))
 
             if isinstance(dst, str):
                 dst = dst.encode('utf8')
@@ -235,7 +245,8 @@ class ClientSafe(interface.Client):
                 self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
             else:
                 # public --> non-public
-                msg = self._cust_boxes[customer_dst].encrypt(msg, self._get_nonce())
+                msg = self._cust_boxes[customer_dst].encrypt(
+                    msg, self._get_nonce())
                 # print("Sending encrypted data to %s" % dst.decode('utf8'))
                 self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
         else:
@@ -244,8 +255,9 @@ class ClientSafe(interface.Client):
             try:
                 split = dst.split('.')
                 dst_is_public = split[0] == 'public'
-            except:
-                pass
+            except Exception as e:
+                logging.warning("exception caught : {}".format(
+                    e.message))
 
             if isinstance(dst, str):
                 dst = dst.encode('utf8')
@@ -274,7 +286,8 @@ class ClientSafe(interface.Client):
         self._dealer = self._ctx.socket(zmq.DEALER)
         self._dealer.setsockopt(zmq.LINGER, 1000)
         self._dealer.connect(self._dealerurl)
-        self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
+        self._stream = zmq.eventloop.zmqstream.ZMQStream(
+            self._dealer, self._IOLoop)
         self._stream.on_recv(self._on_message)
         self._send(DD.bCMD_ADDLCL, [self._hash])
 
@@ -300,7 +313,9 @@ class ClientSafe(interface.Client):
             self._heartbeat_loop.start()
             self._send(DD.bCMD_PING, [self._cookie])
             for (topic, scopestr) in self._subscriptions:
-                self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
+                self._send(
+                    DD.bCMD_SUB, [
+                        self._cookie, topic.encode(), scopestr.encode()])
 
             self.on_reg()
 
@@ -333,8 +348,11 @@ class ClientSafe(interface.Client):
             self._state = DD.S_CHALLENGED
             encryptednumber = msg.pop(0)
             decryptednumber = self._dd_box.decrypt(encryptednumber)
-            # Send the decrypted number, his hash and his name for the registration
-            self._send(DD.bCMD_CHALLOK, [decryptednumber, self._hash, self._name])
+            # Send the decrypted number, his hash and his name for the
+            # registration
+            self._send(
+                DD.bCMD_CHALLOK, [
+                    decryptednumber, self._hash, self._name])
         elif cmd == DD.bCMD_PUB:
             src = msg.pop(0)
             topic = msg.pop(0)
@@ -343,7 +361,8 @@ class ClientSafe(interface.Client):
                 src_customer = src.decode().split('.')[0]
                 if src_customer in self._cust_boxes:
                     # non-public --> public
-                    decryptmsg = self._cust_boxes[src_customer].decrypt(encryptmsg)
+                    decryptmsg = self._cust_boxes[
+                        src_customer].decrypt(encryptmsg)
                 else:
                     # public --> public
                     decryptmsg = self._cust_box.decrypt(encryptmsg)
@@ -363,7 +382,8 @@ class ClientSafe(interface.Client):
                 self._sublist.append(tt)
             else:
                 logging.error("Already subscribed to topic %s", topic)
-                self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+                self._dealer.send_multipart(
+                    [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
         elif cmd == DD.bCMD_ERROR:
             self.on_error(int.from_bytes(msg.pop(0), byteorder='little'), msg)
         else:
@@ -383,11 +403,15 @@ class ClientSafe(interface.Client):
     def _cli_usage():
         print("Commands: ")
         print("help                     - show this help")
-        print("send        [client] [message] - send an encrypted message to client")
-        print("sendPT      [client] [message] - send a plain text message to client")
-        print("sendpublic  [public client] [message] - send message to a public client")
+        print(
+            "send        [client] [message] - send an encrypted message to client")
+        print(
+            "sendPT      [client] [message] - send a plain text message to client")
+        print(
+            "sendpublic  [public client] [message] - send message to a public client")
         print("pub         [topic]  [message] - publish message on topic")
-        print("pubpublic   [topic]  [message] - publish message on public topic")
+        print(
+            "pubpublic   [topic]  [message] - publish message on public topic")
         print("sub         [topic]            - subscribe to messages in topic")
         print("unsub       [topic]            - subscribe to messages in topic")
         print('exit                           - unregister and exit')

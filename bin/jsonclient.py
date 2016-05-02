@@ -33,26 +33,27 @@ from doubledecker.clientSafe import ClientSafe
 import json
 import sys
 
-from collections import deque
+# from collections import deque
 
 # Example client taking JSON commands as input on STDIN
 # And printing incoming messages as JSON to STDOUT
 
+
 class SecureCli(ClientSafe):
-    def __init__(self, name, dealerurl, customer, keyfile,topics):
+
+    def __init__(self, name, dealerurl, customer, keyfile, topics):
         super().__init__(name, dealerurl, customer, keyfile)
         self.mytopics = list()
 
         try:
             for top in topics.split(","):
-                if len(top) == 0:
+                if not len:
                     return
-                (topic,scope) = top.split("/")
-                self.mytopics.append((topic,scope))
+                (topic, scope) = top.split("/")
+                self.mytopics.append((topic, scope))
         except ValueError:
             logging.error("Could not parse topics!")
             sys.exit(1)
-
 
     def on_data(self, src, data):
         msg = dict()
@@ -68,12 +69,10 @@ class SecureCli(ClientSafe):
         for topic in self.mytopics:
             self.subscribe(*topic)
 
-
     def on_discon(self):
         msg = dict()
         msg["type"] = "discon"
         print(json.dumps(msg))
-
 
     def on_error(self, code, error):
         msg = dict()
@@ -90,37 +89,42 @@ class SecureCli(ClientSafe):
         msg["data"] = data.decode()
         print(json.dumps(msg))
 
-    def on_stdin(self,fp,*kargs):
+    def on_stdin(self, fp, *kargs):
         data = fp.readline()
         try:
             res = json.loads(data)
-        except ValueError as e:
+        except ValueError:
             res = dict()
 
         if "type" in res:
             if res['type'] == "notify":
-                self.sendmsg(res['dst'],res['data'])
+                self.sendmsg(res['dst'], res['data'])
             elif res['type'] == "pub":
                 self.publish(res['topic'], res['data'])
             elif res['type'] == "sub":
-                self.subscribe(res['topc'],res['scope'])
+                self.subscribe(res['topc'], res['scope'])
             else:
-                print(json.dumps({"type":"error", "data":"Command '{0!s}' not implemented".format(res['type'])}))
+                print(
+                    json.dumps(
+                        {"type": "error",
+                         "data": "Command '{0!s}' not implemented".format(
+                             res['type'])}))
         else:
-            print(json.dumps({"type":"error", "data":"Couldn't parse JSON"}))
+            print(json.dumps({"type": "error", "data": "Couldn't parse JSON"}))
 
     def run(self):
         self.start()
 
-
-    def exit_program(self,button):
+    def exit_program(self, *args):
         self.shutdown()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generic message client")
     parser.add_argument('name', help="Identity of this client")
-    parser.add_argument('customer', help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
+    parser.add_argument(
+        'customer',
+     help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
     parser.add_argument(
         '-d',
         "--dealer",
@@ -154,12 +158,9 @@ if __name__ == '__main__':
         default='')
 
     parser.add_argument(
-        '-t',
-        "--topics",
+        '-t', "--topics",
         help='Comma separated list of topics/scopes, e.g. "topic1/all,topic2/node"',
-        nargs='?',
-        default='')
-
+        nargs='?', default='')
 
     args = parser.parse_args()
 
@@ -167,14 +168,28 @@ if __name__ == '__main__':
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: {0!s}'.format(args.loglevel))
     if args.logfile:
-        logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
+        logging.basicConfig(
+            format='%(levelname)s:%(message)s',
+            filename=args.logfile,
+            level=numeric_level)
     else:
-        logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
+        logging.basicConfig(
+            format='%(levelname)s:%(message)s',
+            filename=args.logfile,
+            level=numeric_level)
 
     logging.info("Safe client")
-    genclient = SecureCli(name=args.name, dealerurl=args.dealer, customer=args.customer,keyfile=args.keyfile, topics=args.topics)
+    genclient = SecureCli(
+        name=args.name,
+        dealerurl=args.dealer,
+        customer=args.customer,
+        keyfile=args.keyfile,
+     topics=args.topics)
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")
-    genclient._IOLoop.add_handler(sys.stdin,genclient.on_stdin,genclient._IOLoop.READ)
+    genclient._IOLoop.add_handler(
+        sys.stdin,
+        genclient.on_stdin,
+     genclient._IOLoop.READ)
     genclient.run()

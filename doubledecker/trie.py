@@ -128,16 +128,16 @@ class Trie(collections.MutableMapping):
         if len(args) > 1:
             raise ValueError('update() takes at most one positional argument, '
                              '%d given.' % len(args))
-    # We have this here instead of just letting MutableMapping.update() handle
-    # things because it will iterate over keys and for each key retrieve the
-    # value.  With Trie, this may be expensive since the path to the node
-    # would have to be walked twice.  Instead, we have our own implementation
-    # where iteritems() is used avoiding the unnecessary value look-up.
-    if args and isinstance(args[0], Trie):
-        for key, value in args[0].iteritems():
-            self[key] = value
-        args = ()
-    super(Trie, self).update(*args, **kwargs)
+        # We have this here instead of just letting MutableMapping.update() handle
+        # things because it will iterate over keys and for each key retrieve the
+        # value.  With Trie, this may be expensive since the path to the node
+        # would have to be walked twice.  Instead, we have our own implementation
+        # where iteritems() is used avoiding the unnecessary value look-up.
+        if args and isinstance(args[0], Trie):
+            for key, value in args[0].iteritems():
+                self[key] = value
+            args = ()
+        super(Trie, self).update(*args, **kwargs)
 
     def copy(self):
         """Returns a shallow copy of the trie."""
@@ -691,10 +691,10 @@ class PrefixSet(collections.MutableSet):
                 :class:`trie.PrefixSet`.
         kwargs: Additional keyword arguments passed to the factory function.
         """
-    trie = factory(**kwargs)
-    if iterable:
-        trie.update((key, True) for key in iterable)
-    self._trie = trie
+        trie = factory(**kwargs)
+        if iterable:
+            trie.update((key, True) for key in iterable)
+        self._trie = trie
 
     def copy(self):
         """Returns a copy of the prefix set."""
@@ -715,7 +715,7 @@ class PrefixSet(collections.MutableSet):
         """
         return self._trie.iterkeys()
 
-    def iter(self, prefix=_SENTINEL):
+    def iter_(self, prefix=_SENTINEL):
         """Iterates over all keys in the set optionally starting with a prefix.
 
         Since a key does not have to be explicitly added to the set to be an element
