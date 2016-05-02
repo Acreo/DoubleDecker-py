@@ -32,12 +32,12 @@ from nacl.public import PrivateKey
 from nacl.encoding import Base64Encoder
 
 
-def generateKeys(names):
+def generate_keys(names):
     """
     Generate keyfiles for the secure broker
-    Writes keys to json files, and returns a tuple with the keys (broker,public,customers)
-    :param names: Comma-separated string with customer names ("IBM,Facebook,...")
-    or array with names ['IBM','Facebook']
+    Writes keys to json files, and returns a tuple with the keys
+    (broker,public,customers) :param names: Comma-separated string with customer
+    names ("IBM,Facebook,...") or array with names ['IBM','Facebook']
     """
 
     names_list = list()
@@ -100,9 +100,6 @@ def generateKeys(names):
         publicClientKeyList[binascii.hexlify(pubkey.__bytes__()).decode()] = {
             "pubkey": pubkey.encode(encoder=Base64Encoder).decode(),
             "r": n}
-        # "r": n,
-        # "R": unpack("!Q", urandom(8))[0]
-        # }
         customerKeys.append(
             {
                 'name': n,
@@ -114,16 +111,13 @@ def generateKeys(names):
             }
         )
 
-    f = open("broker-keys.json", 'wb')
-    f.write(json.dumps(brokerKeyList, indent=4).encode('utf8'))
-    f.close()
-    f = open("public-keys.json", 'wb')
-    f.write(json.dumps(publicClientKeyList, indent=4) .encode('utf8'))
-    f.close()
+    with open("broker-keys.json", 'wb') as f:
+        f.write(json.dumps(brokerKeyList, indent=4).encode('utf8'))
+    with open("public-keys.json", 'wb') as f:
+        f.write(json.dumps(publicClientKeyList, indent=4) .encode('utf8'))
     for key in customerKeys:
-        f = open("{0!s}-keys.json".format(key['name']), "wb")
-        del key['name']
-        f.write(json.dumps(key, indent=4).encode('utf8'))
-        f.close()
+        with open("{0!s}-keys.json".format(key['name']), "wb") as f:
+            del key['name']
+            f.write(json.dumps(key, indent=4).encode('utf8'))
 
     return brokerKeyList, publicClientKeyList, customerKeys

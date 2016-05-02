@@ -29,9 +29,7 @@ __license__ = """
 
 import argparse
 import logging
-import sys
 from doubledecker.clientSafe import ClientSafe
-from doubledecker.clientUnsafe import ClientUnsafe
 import urwid
 from collections import deque
 import time
@@ -43,10 +41,12 @@ import json
 
 
 class SecureCli(ClientSafe):
+
     def __init__(self, name, dealerurl, customer, keyfile):
         super().__init__(name, dealerurl, customer, keyfile)
         self.msg_list = deque(maxlen=10)
         self.messages = ""
+        self.main_text = ""
 
         self.pub_msg = ""
         self.pub_topic = ""
@@ -85,7 +85,8 @@ class SecureCli(ClientSafe):
 
     def on_error(self, code, msg):
         if code == ClientSafe.E_REGFAIL:
-            self.add_msg("ERROR - Registration failed, reason: {0!s}".format(msg[0]))
+            self.add_msg(
+                "ERROR - Registration failed, reason: {0!s}".format(msg[0]))
         elif code == ClientSafe.E_VERSION:
             self.add_msg("ERROR - Registration failed, wrong protcol version!")
         elif code == ClientSafe.E_NODST:
@@ -94,7 +95,8 @@ class SecureCli(ClientSafe):
             self.add_msg("ERROR - unknwon ({0:d},{1!s})".format(code, msg))
 
     def on_pub(self, src, topic, msg):
-        msgstr = "PUB {0!s} from {1!s}: {2!s}".format(str(topic), str(src), str(msg))
+        msgstr = "PUB {0!s} from {1!s}: {2!s}".format(
+            str(topic), str(src), str(msg))
         self.add_msg(msgstr)
 
     def update_main_text(self):
@@ -106,7 +108,10 @@ class SecureCli(ClientSafe):
         substr = json.dumps(self.subscriptions)
         self.main_text = (
             "DoubleDecker {0!s} Dealer: {1!s} State: {2!s}\nSubscriptions: {3!s}".format(
-                self._name.decode(), self._dealerurl.decode(), state, substr))
+                self._name.decode(),
+                self._dealerurl.decode(),
+                state,
+                substr))
         try:
             self.body[0].set_text(self.main_text)
         except AttributeError:
@@ -115,30 +120,62 @@ class SecureCli(ClientSafe):
     def run(self):
         self.choices = ["Subscribe", "Unsubscribe", "Exit"]
         self.update_main_text()
-        self.main = urwid.Padding(
-            self.menu(self.main_text, self.choices), left=2, right=2)
-        urwid.MainLoop(self.main,
-                       palette=[('reversed', 'standout', '')],
-                       event_loop=urwid.TornadoEventLoop(genclient._IOLoop)).run()
+        self.main = urwid.Padding(self.menu(), left=2, right=2)
+        urwid.MainLoop(
+            self.main,
+            palette=[('reversed', 'standout', '')],
+            event_loop=urwid.TornadoEventLoop(genclient._IOLoop)).run()
 
-    def menu(self, title, choices):
-        self.body = [urwid.Text(title), urwid.Divider(div_char='~')]
+    def menu(self):
+        self.body = [urwid.Text(self.main_text), urwid.Divider(div_char='~')]
 
         notify_button = urwid.Button("Send Notifcation")
-        urwid.connect_signal(notify_button, 'click', self.notify_handler, "notify")
-        self.body.append(urwid.AttrMap(notify_button, None, focus_map='reversed'))
+        urwid.connect_signal(
+            notify_button,
+            'click',
+            self.notify_handler,
+            "notify")
+        self.body.append(
+            urwid.AttrMap(
+                notify_button,
+                None,
+                focus_map='reversed'))
 
         publish_button = urwid.Button("Publish message")
-        urwid.connect_signal(publish_button, 'click', self.publish_handler, "publish")
-        self.body.append(urwid.AttrMap(publish_button, None, focus_map='reversed'))
+        urwid.connect_signal(
+            publish_button,
+            'click',
+            self.publish_handler,
+            "publish")
+        self.body.append(
+            urwid.AttrMap(
+                publish_button,
+                None,
+                focus_map='reversed'))
 
         subscribe_button = urwid.Button("Subscribe to topic")
-        urwid.connect_signal(subscribe_button, 'click', self.subscribe_handler, "subscribe")
-        self.body.append(urwid.AttrMap(subscribe_button, None, focus_map='reversed'))
+        urwid.connect_signal(
+            subscribe_button,
+            'click',
+            self.subscribe_handler,
+            "subscribe")
+        self.body.append(
+            urwid.AttrMap(
+                subscribe_button,
+                None,
+                focus_map='reversed'))
 
         unsubscribe_button = urwid.Button("Unsubscribe from topic")
-        urwid.connect_signal(unsubscribe_button, 'click', self.unsubscribe_handler, "unsubscribe")
-        self.body.append(urwid.AttrMap(unsubscribe_button, None, focus_map='reversed'))
+        urwid.connect_signal(
+            unsubscribe_button,
+            'click',
+            self.unsubscribe_handler,
+            "unsubscribe")
+        self.body.append(
+            urwid.AttrMap(
+                unsubscribe_button,
+                None,
+                focus_map='reversed'))
 
         exit_button = urwid.Button("Quit DoubleDecker demo client")
         urwid.connect_signal(exit_button, 'click', self.exit_program)
@@ -195,7 +232,8 @@ class SecureCli(ClientSafe):
         self.sub_topic = ''
         self.sub_scope = ''
         topic = urwid.Edit(('I say', u"Topic: "))
-        scope = urwid.Edit(('I say', u"Scope(all/region/cluster/node/noscope: "))
+        scope = urwid.Edit(
+            ('I say', u"Scope(all/region/cluster/node/noscope: "))
         ret = urwid.Button(u'Subscribe')
         urwid.connect_signal(topic, 'change', self.on_sub_topic_change)
         urwid.connect_signal(scope, 'change', self.on_sub_scope_change)
@@ -212,7 +250,8 @@ class SecureCli(ClientSafe):
 
     def unsubscribe_handler(self, button, choice):
         topic = urwid.Edit(('I say', u"Topic: "))
-        scope = urwid.Edit(('I say', u"Scope(all/region/cluster/node/noscope: "))
+        scope = urwid.Edit(
+            ('I say', u"Scope(all/region/cluster/node/noscope: "))
         ret = urwid.Button(u'Unsubscribe')
         urwid.connect_signal(topic, 'change', self.on_unsub_topic_change)
         urwid.connect_signal(scope, 'change', self.on_unsub_scope_change)
@@ -228,10 +267,10 @@ class SecureCli(ClientSafe):
         if cmd == 'publish':
             self.publish(self.pub_topic, self.pub_msg)
 
-        if cmd == 'subscribe' :
+        if cmd == 'subscribe':
             substr = "{0!s}/{1!s}".format(self.sub_topic, self.sub_scope)
             self.subscriptions.append(substr)
-            try :
+            try:
                 self.subscribe(self.sub_topic, self.sub_scope)
             except BaseException as e:
                 self.add_msg("Exception caught : {0!s})".format(str(e)))
@@ -239,63 +278,28 @@ class SecureCli(ClientSafe):
         if cmd == 'unsubscribe':
             substr = "{0!s}/{1!s}".format(self.sub_topic, self.sub_scope)
             self.subscriptions.remove(substr)
-            self.unsubscribe(self.unsub_topic,self.unsub_scope)
+            self.unsubscribe(self.unsub_topic, self.unsub_scope)
 
         self.update_main_text()
-        self.main.original_widget = self.menu(self.main_text, self.choices)
+        self.main.original_widget = self.menu()
 
-
-    def exit_program(self,button):
+    def exit_program(self):
         self.shutdown()
         raise urwid.ExitMainLoop()
 
 
-# ClientUnsafe does no encryption nor authentication
-class PlainCli(ClientUnsafe):
-    def __init__(self, name, dealerurl, customer):
-        super().__init__(name, dealerurl, customer)
-
-    def on_data(self, src, msg):
-        logging.info("Got message from {0!s}: {1!s}".format(str(src), str(msg)))
-
-    def on_reg(self):
-        logging.info('Registered, subscribing to customer topic "test-topic/all"')
-        self.sub_scope("test-topic", "all")
-        logging.info('Publishing message on "test-topic"')
-        self.publish("test-topic", "hello customer clients!")
-        logging.info('Publishing message on public topic "test-topic"')
-        self.publish("public.test-topic", "hello public clients!")
-        logging.info('Sending direct message to client (same customer) "clientA"')
-        self.sendmsg("clientA", "Hello clientA!")
-        logging.info('Sending direct message to client (public) "clientA"')
-        self.sendmsg("public.clientA", "Hello clientA!")
-
-    def on_discon(self):
-        logging.info('Lost connection to broker')
-
-    def on_pub(self, src, topic, msg):
-        logging.info("Got message on topic {0!s} from {1!s}: {2!s}".format(str(topic), str(src), str(msg)))
-
-
-    def on_exit_clicked(button):
-        raise urwid.ExitMainLoop()
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generic message client")
     parser.add_argument('name', help="Identity of this client")
-    parser.add_argument('customer', help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
+    parser.add_argument(
+        'customer',
+        help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
     parser.add_argument(
         '-d',
         "--dealer",
         help='URL to connect DEALER socket to, "tcp://1.2.3.4:5555"',
         nargs='?',
         default='tcp://127.0.0.1:5555')
-    parser.add_argument(
-        '-u',
-        "--unsafe",
-        action='store_true',
-        help='Secure client',
-        default=False)
     parser.add_argument(
         '-f',
         "--logfile",
@@ -322,17 +326,21 @@ if __name__ == '__main__':
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: {0!s}'.format(args.loglevel))
     if args.logfile:
-        logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
+        logging.basicConfig(
+            format='%(levelname)s:%(message)s',
+            filename=args.logfile,
+            level=numeric_level)
     else:
-        logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
+        logging.basicConfig(
+            format='%(levelname)s:%(message)s',
+            filename=args.logfile,
+            level=numeric_level)
 
-    if args.unsafe == True:
-        logging.info("Unsafe client")
-        genclient = PlainCli(name=args.name, dealerurl=args.dealer, customer=args.customer)
-
-    else:
-        logging.info("Safe client")
-        genclient = SecureCli(name=args.name, dealerurl=args.dealer, customer=args.customer,keyfile=args.keyfile)
+    genclient = SecureCli(
+        name=args.name,
+        dealerurl=args.dealer,
+        customer=args.customer,
+     keyfile=args.keyfile)
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")

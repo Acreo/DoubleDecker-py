@@ -27,11 +27,11 @@ __license__ = """
 """
 
 __author__ = 'eponsko'
-from doubledecker.generatekeys import generateKeys
+from doubledecker.generateKeys import generate_keys
 import pprint
 
 names = input("List of customers (csv): ")
-broker, system, customer = generateKeys(names)
+broker, system, customer = generate_keys(names)
 
 
 print("Broker keys")
