@@ -105,7 +105,7 @@ class SecureCli(ClientSafe):
             elif res['type'] == "sub":
                 self.subscribe(res['topc'],res['scope'])
             else:
-                print(json.dumps({"type":"error", "data":"Command '%s' not implemented"%res['type']}))
+                print(json.dumps({"type":"error", "data":"Command '{0!s}' not implemented".format(res['type'])}))
         else:
             print(json.dumps({"type":"error", "data":"Couldn't parse JSON"}))
 
@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     numeric_level = getattr(logging, args.loglevel.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % args.loglevel)
+        raise ValueError('Invalid log level: {0!s}'.format(args.loglevel))
     if args.logfile:
         logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
     else:

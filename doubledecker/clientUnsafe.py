@@ -32,8 +32,7 @@ class ClientUnsafe(interface.Client):
                 return
             dst = cmd[1].encode("utf8")
             msg = cmd[2].strip().encode('utf8')
-            logging.debug("Sending \"%s\" to %s" %
-                          (msg, dst.decode('utf8')))
+            logging.debug("Sending \"{0!s}\" to {1!s}".format(msg, dst.decode('utf8')))
             self.sendmsg(dst, msg)
         elif 'exit' == cmd[0]:
             self.shutdown()
@@ -46,19 +45,19 @@ class ClientUnsafe(interface.Client):
         elif 'unsub' == cmd[0]:
             if len(cmd) > 1:
                 if (cmd[1] in self._sublist):
-                    logging.info("Unsubscribing from %s*" % cmd[1])
+                    logging.info("Unsubscribing from {0!s}*".format(cmd[1]))
                     for sub in self._sublist:
                         if(sub.startswith(cmd[1]+"/")):
                             self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, sub.encode()])
                             self._sublist.remove(sub)
 
                 else:
-                    logging.info("You are not subscribed to this topic: %s" % cmd[1])
+                    logging.info("You are not subscribed to this topic: {0!s}".format(cmd[1]))
             else:
                 print("usage: unsub [topic]")
         elif 'pub' == cmd[0]:
             if len(cmd) > 2:
-                logging.info("Publishing message on %s*" % cmd[1])
+                logging.info("Publishing message on {0!s}*".format(cmd[1]))
                 self.publish(cmd[1].encode(), cmd[2].encode())
             else:
                 print("usage: pub [topic] [message]")
@@ -87,9 +86,9 @@ class ClientUnsafe(interface.Client):
             print("The scope should be like: '/1/2/3/'")
             return
         if scopestr == "noscope":
-            logging.info("Subscribing to %s" % topic)
+            logging.info("Subscribing to {0!s}".format(topic))
         else:
-            logging.info("Subscribing to %s" % (topic + scopestr))
+            logging.info("Subscribing to {0!s}".format((topic + scopestr)))
         self._send(DD.bCMD_SUB, [topic.encode(), scopestr.encode()])
 
     def publish(self, topic, message):
@@ -191,7 +190,7 @@ class ClientUnsafe(interface.Client):
         elif cmd == DD.bCMD_SUBOK:
             topic = msg.pop(0).decode()
             scope = msg.pop(0).decode()
-            tt = "%s%s" % (topic, scope)
+            tt = "{0!s}{1!s}".format(topic, scope)
             if tt not in self._sublist:
                 self._sublist.append(tt)
             else:
@@ -200,9 +199,9 @@ class ClientUnsafe(interface.Client):
                     [DD.bPROTO_VERSION,
                      DD.bCMD_UNSUB, topic.encode()])
         elif cmd == DD.bCMD_NODST:
-            logging.warning("Unknown client %s" % msg.pop(0))
+            logging.warning("Unknown client {0!s}".format(msg.pop(0)))
         else:
-            logging.warning("Unknown command, got: %d %s" % (cmd, msg))
+            logging.warning("Unknown command, got: {0:d} {1!s}".format(cmd, msg))
 
     def _cli_usage(self):
         print("Commands: ")

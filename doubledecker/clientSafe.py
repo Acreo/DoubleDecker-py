@@ -358,7 +358,7 @@ class ClientSafe(interface.Client):
         elif cmd == DD.bCMD_SUBOK:
             topic = msg.pop(0).decode()
             scope = msg.pop(0).decode()
-            tt = "%s%s" % (topic, scope)
+            tt = "{0!s}{1!s}".format(topic, scope)
             if tt not in self._sublist:
                 self._sublist.append(tt)
             else:
