@@ -12,7 +12,7 @@ apt-get install python3-setuptools python3-nacl python3-zmq python3-urwid python
 # clone the code
 git clone https://github.com/Acreo/DoubleDecker.git
 # install the doubledecker module and scripts
-cd DoubleDecker/python
+cd DoubleDecker-py
 sudo python3 setup.py install
 # generate public/private keys
 cd /etc
@@ -24,8 +24,8 @@ ddkeys.py (input "a,b,c")
 
 ### USAGE
 ```bash
-#First you need to start a broker, you can use the C version available on this
-# repository or the container version
+#First you need to start a broker, you can use the C version available
+# at https://github.com/Acreo/DoubleDecker
 # start a client from tentant A, called cli1, connect to broker0
 ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli1 a
 # start a second client tentant A, called cli2, connect to broker0
