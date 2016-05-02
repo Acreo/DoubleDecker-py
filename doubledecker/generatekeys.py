@@ -121,7 +121,7 @@ def generateKeys(names):
     f.write(json.dumps(publicClientKeyList, indent=4) .encode('utf8'))
     f.close()
     for key in customerKeys:
-        f = open("%s-keys.json" % key['name'], "wb")
+        f = open("{0!s}-keys.json".format(key['name']), "wb")
         del key['name']
         f.write(json.dumps(key, indent=4).encode('utf8'))
         f.close()

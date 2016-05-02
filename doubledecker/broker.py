@@ -72,7 +72,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         self.tenants = list()
         self.state = DD.S_ROOT
         self.name = name
-        self.rname = ("|%s|" % name.decode()).encode()
+        self.rname = ("|{0!s}|".format(name.decode())).encode()
         self.timeout = 0
         self.pub_southub = True
         self.random_number = 0
@@ -146,8 +146,8 @@ class Broker(object, metaclass=abc.ABCMeta):
                 #logging.debug("routerurl split %s" % url)
                 self.router.bind(url)
         except zmq.error.ZMQError as e:
-            logging.critical('An error happened durind the binding of' % self.routerurl)
-            logging.critical('Error says :' % e.strerror)
+            logging.critical('An error happened durind the binding of'.format(*self.routerurl))
+            logging.critical('Error says :'.format(*e.strerror))
             self.shutdown()
             return
 
@@ -174,11 +174,11 @@ class Broker(object, metaclass=abc.ABCMeta):
                     #logging.debug("Port number: %s" % port)
                     pubport = int(port) + 1
                     subport = int(port) + 2
-                    self.pub_southurl = url.replace(port, "%d" % pubport)
-                    self.sub_southurl = url.replace(port, "%d" % subport)
+                    self.pub_southurl = url.replace(port, "{0:d}".format(pubport))
+                    self.sub_southurl = url.replace(port, "{0:d}".format(subport))
                     #logging.debug("pub and sub strings: %s %s" % (self.pub_southurl, self.sub_southurl))
                 elif 'ipc' in url:
-                    logging.debug("IPC: %s" % url.split(':')[-1])
+                    logging.debug("IPC: {0!s}".format(url.split(':')[-1]))
                 else:
                     logging.warning("routerurl is not tcp or ipc, pub/sub not supported!")
 
@@ -188,8 +188,8 @@ class Broker(object, metaclass=abc.ABCMeta):
                 for url in self.pub_southurl.split(','):
                     self.pub_south_sock.bind(url)
             except zmq.error.ZMQError as e:
-                logging.critical('PublisherS: error happened during the binding of %s' % url)
-                logging.critical('Error says : %s' % e.strerror)
+                logging.critical('PublisherS: error happened during the binding of {0!s}'.format(url))
+                logging.critical('Error says : {0!s}'.format(e.strerror))
                 self.shutdown()
                 return
             self.pub_south_stream.on_recv(self.on_pub_south_msg, self.IOLoop)
@@ -200,22 +200,21 @@ class Broker(object, metaclass=abc.ABCMeta):
 
                 self.sub_south_stream.on_recv(self.on_sub_south_msg)
             except zmq.error.ZMQError as e:
-                logging.critical('SubscriberS: error happened during the binding of %s' % url)
-                logging.critical('Error says : %s' % e.strerror)
+                logging.critical('SubscriberS: error happened during the binding of {0!s}'.format(url))
+                logging.critical('Error says : {0!s}'.format(e.strerror))
                 self.shutdown()
                 return
 
-        logging.info("Configured: name = %s, Router = %s" %
-                     (self.name, self.routerurl))
+        logging.info("Configured: name = {0!s}, Router = {1!s}".format(self.name, self.routerurl))
         if self.dealerurl == '':
             logging.info('configured as root of the architecture')
         else:
-            logging.info('dealer : %s' % self.dealerurl)
+            logging.info('dealer : {0!s}'.format(self.dealerurl))
 
         # Configure scope
         try:
             self.scopearray = self.scope.split('/')
-            logging.info('Scope: %s' % self.scope)
+            logging.info('Scope: {0!s}'.format(self.scope))
         except:
             logging.critical("Error: The scope should be given as '1/2/3'")
             self.shutdown()
@@ -249,8 +248,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         if cmd in self.dealer_cmds:
             self.dealer_cmds[cmd](args=msg)
         else:
-            logging.warning('Ununderstood command from broker : %d'
-                            % int.from_bytes(cmd, 'little'))
+            logging.warning('Ununderstood command from broker : {0:d}'.format(int.from_bytes(cmd, 'little')))
 
     def reg_ok(self, args):
         """
@@ -294,12 +292,12 @@ class Broker(object, metaclass=abc.ABCMeta):
                     if 'tcp' in url:
                         port = url.split(':')[-1]
                         pubport = int(port)
-                        self.sub_northurl = self.dealerurl.replace(dealerport, "%d" % pubport)
+                        self.sub_northurl = self.dealerurl.replace(dealerport, "{0:d}".format(pubport))
                 for url in suburls:
                     if 'tcp' in url:
                         port = url.split(':')[-1]
                         subport = int(port)
-                        self.pub_northurl = self.dealerurl.replace(dealerport, "%d" % subport)
+                        self.pub_northurl = self.dealerurl.replace(dealerport, "{0:d}".format(subport))
 
             elif 'ipc' in deal:
                 #logging.debug("IPC: ", deal.split('/')[-1])
@@ -405,7 +403,7 @@ class Broker(object, metaclass=abc.ABCMeta):
             else:
                 self.topic_north[topic] = subs
         else:
-            logging.warning("Unsubscribe from unknown topic: %s" % topic)
+            logging.warning("Unsubscribe from unknown topic: {0!s}".format(topic))
         self.debug_topics()
 
     def add_sub_north(self, topic):
@@ -434,7 +432,7 @@ class Broker(object, metaclass=abc.ABCMeta):
             else:
                 self.topic_south[topic] = subs
         else:
-            logging.warning("Unsubscribe from unknown topic: %s" % topic)
+            logging.warning("Unsubscribe from unknown topic: {0!s}".format(topic))
         self.debug_topics()
 
     def add_sub_south(self, topic):
@@ -510,7 +508,7 @@ class Broker(object, metaclass=abc.ABCMeta):
                 self.router.send_multipart(
                     [client, DD.bPROTO_VERSION, DD.bCMD_PUB, source, topic.encode(), message])
         except BaseException as e:
-            logging.error("Exception in on_sub_north_msg: " % str(e))
+            logging.error("Exception in on_sub_north_msg: ".format(*str(e)))
             pass
 
     #
@@ -530,10 +528,10 @@ class Broker(object, metaclass=abc.ABCMeta):
         body = a[1:]
 
         if cmd == 1:
-            logging.info(" + Got subscription for: %s" % str(body))
+            logging.info(" + Got subscription for: {0!s}".format(str(body)))
             self.add_sub_north(body)
         if cmd == 0:
-            logging.info(" - Got unsubscription for: %s" % str(body))
+            logging.info(" - Got unsubscription for: {0!s}".format(str(body)))
             self.remove_sub_north(body)
         # subscriptions from north should continue down
         self.sub_south_sock.send_multipart(msg)
@@ -573,7 +571,7 @@ class Broker(object, metaclass=abc.ABCMeta):
                     self.router.send_multipart(
                         [client, DD.bPROTO_VERSION, DD.bCMD_PUB, source, topic.encode(), message])
             except BaseException as e:
-                logging.error("Exception in on_sub_south_msg: %s" % str(e))
+                logging.error("Exception in on_sub_south_msg: {0!s}".format(str(e)))
                 pass
 
     def on_pub_south_msg(self, msg):
@@ -590,10 +588,10 @@ class Broker(object, metaclass=abc.ABCMeta):
         body = a[1:]
 
         if cmd == 1:
-            logging.info(" + Got subscription for: %s" % str(body))
+            logging.info(" + Got subscription for: {0!s}".format(str(body)))
             self.add_sub_south(body)
         if cmd == 0:
-            logging.info(" - Got unsubscription for: %s" % str(body))
+            logging.info(" - Got unsubscription for: {0!s}".format(str(body)))
             self.remove_sub_south(body)
 
         self.sub_north_sock.send_multipart(msg)
@@ -645,7 +643,7 @@ class Broker(object, metaclass=abc.ABCMeta):
             if source + R in self.registered_client:
                 r = self.local_cli[source][1]
         except KeyError:
-            logging.warning("Got unsub from unknown source %s" % str(source))
+            logging.warning("Got unsub from unknown source {0!s}".format(str(source)))
             return
 
         #print("START subscrioptions: ")
@@ -656,7 +654,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         #pprint(self.topics_trie)
 
         topic = '.'.join([r, topic.decode()])
-        logging.info(" - Got unsubscription for: %s from %s" % (str(topic),source))
+        logging.info(" - Got unsubscription for: {0!s} from {1!s}".format(str(topic), source))
 
 
        # print("scopestr: ", scopestr)
@@ -762,7 +760,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         dist = args.pop(0)
         if name not in self.dist_cli:
             self.dist_cli[name] = [source, dist]
-            logging.info(' + Added distant client: %s (%s)' % (name, dist))
+            logging.info(' + Added distant client: {0!s} ({1!s})'.format(name, dist))
 
         if self.state == DD.S_REGISTERED:
             self.add_client_up(name, int(dist))
@@ -778,7 +776,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         # TODO: should do authentication here too!
 
         if source not in self.local_br:
-            logging.info(' + Added broker: %s' % str(source))
+            logging.info(' + Added broker: {0!s}'.format(str(source)))
             self.local_br[source] = [0]
 
         self.router.send_multipart([source, DD.bPROTO_VERSION, DD.bCMD_REGOK,
@@ -809,7 +807,7 @@ class Broker(object, metaclass=abc.ABCMeta):
             return
         name = args.pop(0)
         if name in self.dist_cli and self.dist_cli[name][0] == broker:
-            logging.info(' - Deleting distant client: %s' % str(name))
+            logging.info(' - Deleting distant client: {0!s}'.format(str(name)))
             del self.dist_cli[name]
             self.del_cli_up(name)
 
@@ -820,7 +818,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         :param args:
         """
         tmp_to_del = []
-        logging.info(' - Unregistering broker: %s' % str(name))
+        logging.info(' - Unregistering broker: {0!s}'.format(str(name)))
         for cli in self.dist_cli:
             if self.dist_cli[cli][0] == name:
                 tmp_to_del.append(cli)
@@ -842,7 +840,7 @@ class Broker(object, metaclass=abc.ABCMeta):
         elif identity in self.local_br:
             self.router.send_multipart([identity, DD.bPROTO_VERSION, DD.bCMD_PONG])
         else:
-            logging.warning("Ping from unregistered client/broker: %s" % str(identity))
+            logging.warning("Ping from unregistered client/broker: {0!s}".format(str(identity)))
 
     # plain text message from local to another client
     @abc.abstractmethod
@@ -1086,7 +1084,7 @@ class BrokerSafe(Broker):
         try:
             f = open(self.keys)
         except:
-            logging.critical("Could not open keyfile: %s" % self.keys)
+            logging.critical("Could not open keyfile: {0!s}".format(self.keys))
             sys.exit(1)
 
         self.hashes = json.load(f)
@@ -1166,11 +1164,11 @@ class BrokerSafe(Broker):
                 self.reverse_local_cli[prefix_clientname] = [identity, 0]
                 self.registered_client.add(identity + decryptednumber)
                 self.router.send_multipart([identity, DD.bPROTO_VERSION, DD.bCMD_REGOK, decryptednumber])
-                logging.info(' + Added local client :%s' % str(prefix_clientname))
+                logging.info(' + Added local client :{0!s}'.format(str(prefix_clientname)))
                 if self.state == DD.S_REGISTERED:
                     self.add_client_up(prefix_clientname, 0)
             else:
-                logging.warning("%s:  : Authentication failed" % str(clientname))
+                logging.warning("{0!s}:  : Authentication failed".format(str(clientname)))
                 msg = "Authentication failed"
                 self.router.send_multipart(
                     [identity, DD.bPROTO_VERSION, DD.bCMD_DATAPT, self.name, msg.encode()])
@@ -1191,7 +1189,7 @@ class BrokerSafe(Broker):
         topic = msg[0].decode()
 
         if source + cookie not in self.registered_client:
-            logging.warning("Unregisterd source %s trying to publish"%(source+cookie))
+            logging.warning("Unregisterd source {0!s} trying to publish".format((source+cookie)))
             return
 
         name, tenant = self.local_cli[source]
@@ -1238,7 +1236,7 @@ class BrokerSafe(Broker):
                     self.router.send_multipart(
                         [client, DD.bPROTO_VERSION, DD.bCMD_PUB, name, topic_simple.encode(), message])
             except BaseException as e:
-                logging.error("Exception in pub: %s" % str(e))
+                logging.error("Exception in pub: {0!s}".format(str(e)))
                 pass
 
 
@@ -1257,7 +1255,7 @@ class BrokerSafe(Broker):
         scopestr = msg.pop(0).decode()
         # check that client is allowed to publish
         if source + cookie not in self.registered_client:
-            logging.warning("unregistered client %s trying to subscribe!"%(source+cookie))
+            logging.warning("unregistered client {0!s} trying to subscribe!".format((source+cookie)))
             return
 
         tenant = self.local_cli[source][1]
@@ -1327,7 +1325,7 @@ class BrokerSafe(Broker):
             self.sub_north_sock.send_multipart([msg])
             self.sub_south_sock.send_multipart([msg])
 
-        logging.info(" + Added subscription for: %s" % str(topic))
+        logging.info(" + Added subscription for: {0!s}".format(str(topic)))
 
 #            print("new: ", new)
 #            print("END subscrioptions: ")
@@ -1348,7 +1346,7 @@ class BrokerSafe(Broker):
         source = msg.pop(0)
         tmp = msg.pop(0)
         if tmp != DD.bPROTO_VERSION:
-            logging.warning('Different protocols in use, message from: %s' % str(source))
+            logging.warning('Different protocols in use, message from: {0!s}'.format(str(source)))
             return
 
         cmd = msg.pop(0)
@@ -1363,8 +1361,7 @@ class BrokerSafe(Broker):
             f = self.router_cmds[cmd]
             f(source, msg)
         else:
-            logging.warning('Ununderstood command from %s: %d'
-                            % (str(source), int.from_bytes(cmd, 'little')))
+            logging.warning('Ununderstood command from {0!s}: {1:d}'.format(str(source), int.from_bytes(cmd, 'little')))
 
     def unreg_cli(self, identity, args):
         """
@@ -1376,7 +1373,7 @@ class BrokerSafe(Broker):
             cust = args[0].decode()
             name = args[1].decode()
             prefix_name = '.'.join([cust, name]).encode()
-            logging.info(' - Deleting local client %s' % str(prefix_name))
+            logging.info(' - Deleting local client {0!s}'.format(str(prefix_name)))
             if identity in self.local_cli_timeout:
                 del self.local_cli_timeout[identity]
             if identity in self.local_cli:
@@ -1486,7 +1483,7 @@ class BrokerSafe(Broker):
         dst_name = args.pop(0).decode()
         # check if the client is registered
         if source + cookie not in self.registered_client:
-            logging.warning("Unregistered client %s trynig to send"%(source+cookie))
+            logging.warning("Unregistered client {0!s} trynig to send".format((source+cookie)))
             return
         # check if source / destination is public
         source_name, tenant = self.local_cli[source]
@@ -1741,8 +1738,7 @@ class BrokerUnsafe(Broker):
         :return: None
         """
         if name in self.local_cli:
-            logging.info('%s asked for registration but is already registered'
-                         % name)
+            logging.info('{0!s} asked for registration but is already registered'.format(name))
             return
 
         hashval = args.pop(0).decode()
@@ -1751,7 +1747,7 @@ class BrokerUnsafe(Broker):
             short_name = args.pop(0).decode()
             self.local_cli[name] = [0, customer, short_name]
             self.router.send_multipart([name, DD.bPROTO_VERSION, DD.bCMD_REGOK])
-            logging.info(' + Added local client : %s' % name)
+            logging.info(' + Added local client : {0!s}'.format(name))
             if self.state == DD.S_REGISTERED:
                 self.add_client_up(name, 0)
         else:
@@ -1808,7 +1804,7 @@ class BrokerUnsafe(Broker):
                     self.router.send_multipart(
                         [client, DD.bPROTO_VERSION, DD.bCMD_PUB, source_name, topic_simple.encode(), message])
             except BaseException as e:
-                logging.critical("Exception in on_subS_msg: %s" % str(e))
+                logging.critical("Exception in on_subS_msg: {0!s}".format(str(e)))
                 pass
 
     def sub(self, source, msg):
@@ -1857,7 +1853,7 @@ class BrokerUnsafe(Broker):
         else:
             self.topics_trie[topic.decode()] = [source]
 
-        logging.info("Got subscription for: %s" % str(topic))
+        logging.info("Got subscription for: {0!s}".format(str(topic)))
         self.add_sub_south(topic)
         # On_pub_msg should receive a message like : [b'CmdTopic'], where Cmd=\x01 for a sub
         msg = b'\x01' + topic
@@ -1881,15 +1877,14 @@ class BrokerUnsafe(Broker):
 
         tmp = msg.pop(0)
         if tmp != DD.bPROTO_VERSION:
-            logging.warning('Different protocols in use, message from: %s' % str(source))
+            logging.warning('Different protocols in use, message from: {0!s}'.format(str(source)))
             return
         cmd = msg.pop(0)
         if cmd in self.router_cmds:
             f = self.router_cmds[cmd]
             f(source, msg)
         else:
-            logging.warning('Ununderstood command from %s : %d'
-                            % (str(source), int.from_bytes(cmd, 'little')))
+            logging.warning('Ununderstood command from {0!s} : {1:d}'.format(str(source), int.from_bytes(cmd, 'little')))
 
     def unreg_cli(self, name, args):
         """
@@ -1899,7 +1894,7 @@ class BrokerUnsafe(Broker):
         :param args: Frames following the command in the original message
         """
         if name in self.local_cli:
-            logging.info(' - Deleting local client %s' % str(name))
+            logging.info(' - Deleting local client {0!s}'.format(str(name)))
             if name in self.subscriptions:
                 for topic in self.subscriptions[name]:
                     if self.topic_south[topic] == 1:
@@ -1947,7 +1942,7 @@ class BrokerUnsafe(Broker):
         """
         if len(args) < 1:
             return
-        logging.info("Send: source: %s, args: %s" % (source, args))
+        logging.info("Send: source: {0!s}, args: {1!s}".format(source, args))
         customer = self.local_cli[source][1]
         source_name = self.local_cli[source][2].encode()
         is_public = int.from_bytes(args.pop(0), byteorder='little')
@@ -2116,7 +2111,7 @@ if '__main__' == __name__:
     args_list = parser.parse_args()
     numeric_level = getattr(logging, args_list.loglevel.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % args_list.loglevel)
+        raise ValueError('Invalid log level: {0!s}'.format(args_list.loglevel))
 
     if args_list.verbose:
         logging.warning("Verbose option is deprecated, use loglevel instead")
