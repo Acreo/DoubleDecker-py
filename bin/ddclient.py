@@ -65,7 +65,7 @@ class SecureCli(ClientSafe):
 
     def add_msg(self, msg):
         st = datetime.datetime.fromtimestamp(time.time()).strftime('%H:%M:%S')
-        self.msg_list.append("%s:%s" % (st, msg))
+        self.msg_list.append("{0!s}:{1!s}".format(st, msg))
         self.messages = ""
 
         for n in self.msg_list:
@@ -73,7 +73,7 @@ class SecureCli(ClientSafe):
         self.body[-1].set_text(self.messages)
 
     def on_data(self, src, msg):
-        self.add_msg("DATA from %s: %s" % (str(src), str(msg)))
+        self.add_msg("DATA from {0!s}: {1!s}".format(str(src), str(msg)))
 
     def on_reg(self):
         self.registered = True
@@ -85,16 +85,16 @@ class SecureCli(ClientSafe):
 
     def on_error(self, code, msg):
         if code == ClientSafe.E_REGFAIL:
-            self.add_msg("ERROR - Registration failed, reason: %s" % msg[0])
+            self.add_msg("ERROR - Registration failed, reason: {0!s}".format(msg[0]))
         elif code == ClientSafe.E_VERSION:
             self.add_msg("ERROR - Registration failed, wrong protcol version!")
         elif code == ClientSafe.E_NODST:
-            self.add_msg("ERROR - No destination: %s"%msg)
+            self.add_msg("ERROR - No destination: {0!s}".format(msg))
         else:
-            self.add_msg("ERROR - unknwon (%d,%s)"%(code,msg))
+            self.add_msg("ERROR - unknwon ({0:d},{1!s})".format(code, msg))
 
     def on_pub(self, src, topic, msg):
-        msgstr = "PUB %s from %s: %s" % (str(topic), str(src), str(msg))
+        msgstr = "PUB {0!s} from {1!s}: {2!s}".format(str(topic), str(src), str(msg))
         self.add_msg(msgstr)
 
     def update_main_text(self):
@@ -105,7 +105,7 @@ class SecureCli(ClientSafe):
 
         substr = json.dumps(self.subscriptions)
         self.main_text = (
-            "DoubleDecker %s Dealer: %s State: %s\nSubscriptions: %s" % (
+            "DoubleDecker {0!s} Dealer: {1!s} State: {2!s}\nSubscriptions: {3!s}".format(
                 self._name.decode(), self._dealerurl.decode(), state, substr))
         try:
             self.body[0].set_text(self.main_text)
@@ -229,15 +229,15 @@ class SecureCli(ClientSafe):
             self.publish(self.pub_topic, self.pub_msg)
 
         if cmd == 'subscribe' :
-            substr = "%s/%s" % (self.sub_topic, self.sub_scope)
+            substr = "{0!s}/{1!s}".format(self.sub_topic, self.sub_scope)
             self.subscriptions.append(substr)
             try :
                 self.subscribe(self.sub_topic, self.sub_scope)
             except BaseException as e:
-                self.add_msg("Exception caught : %s)" % str(e))
+                self.add_msg("Exception caught : {0!s})".format(str(e)))
 
         if cmd == 'unsubscribe':
-            substr = "%s/%s" % (self.sub_topic, self.sub_scope)
+            substr = "{0!s}/{1!s}".format(self.sub_topic, self.sub_scope)
             self.subscriptions.remove(substr)
             self.unsubscribe(self.unsub_topic,self.unsub_scope)
 
@@ -256,7 +256,7 @@ class PlainCli(ClientUnsafe):
         super().__init__(name, dealerurl, customer)
 
     def on_data(self, src, msg):
-        logging.info("Got message from %s: %s" % (str(src), str(msg)))
+        logging.info("Got message from {0!s}: {1!s}".format(str(src), str(msg)))
 
     def on_reg(self):
         logging.info('Registered, subscribing to customer topic "test-topic/all"')
@@ -274,7 +274,7 @@ class PlainCli(ClientUnsafe):
         logging.info('Lost connection to broker')
 
     def on_pub(self, src, topic, msg):
-        logging.info("Got message on topic %s from %s: %s" % (str(topic), str(src), str(msg)))
+        logging.info("Got message on topic {0!s} from {1!s}: {2!s}".format(str(topic), str(src), str(msg)))
 
 
     def on_exit_clicked(button):
@@ -320,7 +320,7 @@ if __name__ == '__main__':
 
     numeric_level = getattr(logging, args.loglevel.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % args.loglevel)
+        raise ValueError('Invalid log level: {0!s}'.format(args.loglevel))
     if args.logfile:
         logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
     else:

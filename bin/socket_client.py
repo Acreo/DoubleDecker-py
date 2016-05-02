@@ -78,7 +78,7 @@ class SecureCli(ClientSafe):
     # callback called automatically everytime a point to point is sent at
     # destination to the current client
     def on_data(self, src, msg):
-        print("DATA from %s: %s" % (str(src), str(msg)))
+        print("DATA from {0!s}: {1!s}".format(str(src), str(msg)))
         if len(msg) < 2:
             logging.error("Message received but contains only two frames")
             return
@@ -104,12 +104,12 @@ class SecureCli(ClientSafe):
 
     # callback called when the client receives an error message
     def on_error(self, code, msg):
-        print("ERROR n#%d : %s" % (code, msg))
+        print("ERROR n#{0:d} : {1!s}".format(code, msg))
 
     # callback called when the client receives a message on a topic he
     # subscribed to previously
     def on_pub(self, src, topic, msg):
-        print("PUB %s from %s: %s" % (str(topic), str(src), str(msg)))
+        print("PUB {0!s} from {1!s}: {2!s}".format(str(topic), str(src), str(msg)))
 
     def start(self):
         self.serverThread.start()
@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
     numeric_level = getattr(logging, args.loglevel.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % args.loglevel)
+        raise ValueError('Invalid log level: {0!s}'.format(args.loglevel))
 
     logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
 

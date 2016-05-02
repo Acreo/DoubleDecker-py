@@ -93,7 +93,7 @@ if '__main__' == __name__:
     args_list = parser.parse_args()
     numeric_level = getattr(logging, args_list.loglevel.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % args_list.loglevel)
+        raise ValueError('Invalid log level: {0!s}'.format(args_list.loglevel))
 
     if args_list.verbose:
         logging.warning("Verbose option is deprecated, use loglevel instead")
