@@ -1,3 +1,5 @@
+[![Code Issues](https://www.quantifiedcode.com/api/v1/project/ffd6252b2b444192a5d7ac1779b7f78a/badge.svg)](https://www.quantifiedcode.com/app/project/ffd6252b2b444192a5d7ac1779b7f78a)
+
 ### WARNING
 
 The python version of the broker is not supported at the moment. Please use the
