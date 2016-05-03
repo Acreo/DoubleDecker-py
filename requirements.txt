@@ -1,0 +1,6 @@
+### Various requirements to built the DoubleDecker module ###
+pyzmq
+PyNaCl
+tornado
+cffi
+urwid
