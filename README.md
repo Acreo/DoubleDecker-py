@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/Acreo/DoubleDecker-py.svg?branch=master)](https://travis-ci.org/Acreo/DoubleDecker-py)
 [![Code Issues](https://www.quantifiedcode.com/api/v1/project/ffd6252b2b444192a5d7ac1779b7f78a/badge.svg)](https://www.quantifiedcode.com/app/project/ffd6252b2b444192a5d7ac1779b7f78a)
 
 ### WARNING
