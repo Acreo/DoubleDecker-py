@@ -15,17 +15,19 @@ from . import clientInterface as interface
 
 
 class ClientSafe(interface.Client):
-    """
-    DoubleDecker client with encryption and authentication
-
-    :param name: Client name
-    :param dealerurl: URL to connect to
-    :param customer: Customer name
-    :param keyfile: Location of JSON file containing the keys
-    :raise RuntimeError:
-    """
+    """ DoubleDecker client with encryption and authentication """
 
     def __init__(self, name, dealerurl, customer, keyfile):
+        """ initialise the class
+
+        Args:
+            name: name used to identify the client within the architecture
+            dealerurl: address to reach the broker (e.g. tcp://localhost:5555)
+            customer: name of the tenant of the client
+            keyfile: link to the file containing the keys pair
+        Raises:
+            RuntimeError if the keyfile can't be found
+        """
         super().__init__(name, dealerurl, customer)
 
         if not keyfile:
@@ -96,9 +98,11 @@ class ClientSafe(interface.Client):
     def subscribe(self, topic, scope):
         """
         Subscribe to a topic with a given scope
-        :param topic: Name of the topic
-        :param scope: all, region, cluster, node or noscope
-        :raise SyntaxError:
+        Args:
+            topic: Name of the topic
+            scope: all, region, cluster, node or noscope
+        Raise:
+            SyntaxError if the scope doesn't follow the defined syntax
         """
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
@@ -119,7 +123,8 @@ class ClientSafe(interface.Client):
             scopestr = scope
         else:
             raise SyntaxError(
-                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
+                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE,\
+                or specific values,e.g. /1/2/3/")
 
         if (topic, scopestr) in self._subscriptions:
             logging.warning("Already subscribed to %s %s", topic, scopestr)
@@ -136,11 +141,14 @@ class ClientSafe(interface.Client):
                 self._cookie, topic.encode(), scopestr.encode()])
 
     def unsubscribe(self, topic, scope):
-        """
-        Unsubscribe from a partiuclar topic and scope
-        :param topic: Topic to unsubscribe from
-        :param scope: all, region, cluster, node or noscope
-        :raise SyntaxError:
+        """ Unsubscribe from a partiuclar topic and scope
+
+        Args:
+            topic: Topic to unsubscribe from
+            scope: all, region, cluster, node or noscope
+        Raises:
+            SyntaxError if the scope doesn't follow the defined syntax
+            Connection error if the fucntion is called while unregistered
         """
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
@@ -177,11 +185,13 @@ class ClientSafe(interface.Client):
                 self._cookie, topic.encode(), scopestr.encode()])
 
     def publish(self, topic, message):
-        """
-        Publish a message on a topic
-        :param topic: Which topic to publish to
-        :param message: The message to publish
-        :raise (ConnectionError("Not registered")):
+        """ Publish a message on a topic
+
+        Args:
+            topic: Which topic to publish to
+            message: The message to publish
+        Raises:
+            ConnectionError if called while not registered
         """
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
@@ -195,11 +205,14 @@ class ClientSafe(interface.Client):
             [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg])
 
     def publish_public(self, topic, message):
-        """
-        Publish a message to a public topic (uses different encryption key)
-        :param topic: Which topic to publish to
-        :param message: The message to publish
-        :raise (ConnectionError("Not registered")):
+        """ Publish a message to a public topic
+        (uses different encryption key)
+
+        Args:
+            topic: Which topic to publish to
+            message: The message to publish
+        Raises:
+            ConnectionError if called while not registered
         """
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
@@ -213,15 +226,25 @@ class ClientSafe(interface.Client):
             [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg])
 
     def sendmsg(self, dst, msg):
-        """
-        Send a notification
-        :param dst: Destination for the notification
-        :param msg: Data to send
-        :raise (ConnectionError("Not registered")):
+        """ Send a notification
+
+        Args:
+            dst: Destination for the notification
+            msg: Data to send
+        Raises:
+            ConnectionError if called while not registered
         """
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
 
+        if isinstance(dst, str):
+            dst = dst.encode('utf8')
+        if isinstance(msg, str):
+            msg = msg.encode('utf8')
+
+        # TODO the non-public -> non-public is the last case checked, as it
+        # might be the most common case if would make sense to re-organize this
+        # function
         if self._customer == b'public':
             dst_is_public = True
             try:
@@ -230,13 +253,7 @@ class ClientSafe(interface.Client):
                 if customer_dst in self._cust_boxes:
                     dst_is_public = False
             except Exception as e:
-                logging.warning("exception caught : {}".format(
-                    e.message))
-
-            if isinstance(dst, str):
-                dst = dst.encode('utf8')
-            if isinstance(msg, str):
-                msg = msg.encode('utf8')
+                logging.warning("exception caught : {}".format(e.message))
 
             if dst_is_public:
                 # public --> public
@@ -256,13 +273,7 @@ class ClientSafe(interface.Client):
                 split = dst.split('.')
                 dst_is_public = split[0] == 'public'
             except Exception as e:
-                logging.warning("exception caught : {}".format(
-                    e.message))
-
-            if isinstance(dst, str):
-                dst = dst.encode('utf8')
-            if isinstance(msg, str):
-                msg = msg.encode('utf8')
+                logging.warning("exception caught : {}".format(e.message))
 
             if dst_is_public:
                 # non-public --> public
@@ -277,9 +288,11 @@ class ClientSafe(interface.Client):
                 self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
 
     def _ping(self):
+        """ sends the ping to keep the connection with the broker alive """
         self._send(DD.bCMD_PING, [self._cookie])
 
     def _ask_registration(self):
+        """ initiate the registration with the broker """
         self._dealer.setsockopt(zmq.LINGER, 0)
         self._stream.close()
         self._dealer.close()
@@ -292,6 +305,7 @@ class ClientSafe(interface.Client):
         self._send(DD.bCMD_ADDLCL, [self._hash])
 
     def _on_message(self, msg):
+        """ callback triggered when a message is received """
         self._timeout = 0
         if msg.pop(0) != DD.bPROTO_VERSION:
             logging.warning('Different protocols in use, message discarded')
