@@ -35,15 +35,12 @@ class ClientSafe(interface.Client):
         else:
             filename = keyfile
         try:
-            f = open(filename)
-        except:
-            logging.critical(
-                "Could not find key for customer, file: %s",
-                filename)
-            self.shutdown()
-            raise RuntimeError("Keyfile not found!")
-        key = json.load(f)
-        f.close()
+            with open(filename) as f:
+                key = json.load(f)
+        except IOError as e:
+            print(e)
+            raise
+
         if self._customer.decode() == 'public':
             self._privkey = nacl.public.PrivateKey(
                 key['public']['privkey'],
@@ -107,24 +104,7 @@ class ClientSafe(interface.Client):
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
 
-        scope = scope.strip().lower()
-        if scope == 'all':
-            scopestr = "/"
-        elif scope == 'region':
-            scopestr = "/*/"
-        elif scope == "cluster":
-            scopestr = "/*/*/"
-        elif scope == "node":
-            scopestr = "/*/*/*/"
-        elif scope == "noscope":
-            scopestr = "noscope"
-        elif re.fullmatch("/((\d)+/)+", scope):
-            # check that scope only contains numbers and slashes
-            scopestr = scope
-        else:
-            raise SyntaxError(
-                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE,\
-                or specific values,e.g. /1/2/3/")
+        scopestr = self.check_scope(scope)
 
         if (topic, scopestr) in self._subscriptions:
             logging.warning("Already subscribed to %s %s", topic, scopestr)
@@ -153,23 +133,8 @@ class ClientSafe(interface.Client):
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
 
-        scope = scope.strip().lower()
-        if scope == 'all':
-            scopestr = "/"
-        elif scope == 'region':
-            scopestr = "/*/"
-        elif scope == "cluster":
-            scopestr = "/*/*/"
-        elif scope == "node":
-            scopestr = "/*/*/*/"
-        elif scope == "noscope":
-            scopestr = "noscope"
-        elif re.fullmatch("/((\d)+/)+", scope):
-            # check that scope only contains numbers and slashes
-            scopestr = scope
-        else:
-            raise SyntaxError(
-                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
+        scopestr = self.check_scope(scope)
+
         if scopestr == "noscope":
             logging.debug("Unsubscribing from %s", topic)
         else:
@@ -183,6 +148,28 @@ class ClientSafe(interface.Client):
         self._send(
             DD.bCMD_UNSUB, [
                 self._cookie, topic.encode(), scopestr.encode()])
+
+    @staticmethod
+    def check_scope(scope_):
+        scope_ = scope_.strip().lower()
+        if scope_ == 'all':
+            scopestr = "/"
+        elif scope_ == 'region':
+            scopestr = "/*/"
+        elif scope_ == "cluster":
+            scopestr = "/*/*/"
+        elif scope_ == "node":
+            scopestr = "/*/*/*/"
+        elif scope_ == "noscope":
+            scopestr = "noscope"
+        elif re.fullmatch("/((\d)+/)+", scope_):
+            # check that scope only contains numbers and slashes
+            scopestr = scope_
+        else:
+            raise SyntaxError(
+                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE,\
+                or specific values,e.g. /1/2/3/")
+        return scopestr
 
     def publish(self, topic, message):
         """ Publish a message on a topic
@@ -237,11 +224,6 @@ class ClientSafe(interface.Client):
         if self._state != DD.S_REGISTERED:
             raise ConnectionError
 
-        if isinstance(dst, str):
-            dst = dst.encode('utf8')
-        if isinstance(msg, str):
-            msg = msg.encode('utf8')
-
         # TODO the non-public -> non-public is the last case checked, as it
         # might be the most common case if would make sense to re-organize this
         # function
@@ -253,7 +235,12 @@ class ClientSafe(interface.Client):
                 if customer_dst in self._cust_boxes:
                     dst_is_public = False
             except Exception as e:
-                logging.warning("exception caught : {}".format(e.message))
+                logging.warning("exception caught : {}".format(e))
+
+            if isinstance(dst, str):
+                dst = dst.encode('utf8')
+            if isinstance(msg, str):
+                msg = msg.encode('utf8')
 
             if dst_is_public:
                 # public --> public
@@ -273,7 +260,12 @@ class ClientSafe(interface.Client):
                 split = dst.split('.')
                 dst_is_public = split[0] == 'public'
             except Exception as e:
-                logging.warning("exception caught : {}".format(e.message))
+                logging.warning("exception caught : {}".format(e))
+
+            if isinstance(dst, str):
+                dst = dst.encode('utf8')
+            if isinstance(msg, str):
+                msg = msg.encode('utf8')
 
             if dst_is_public:
                 # non-public --> public
@@ -312,96 +304,111 @@ class ClientSafe(interface.Client):
             return
         cmd = msg.pop(0)
         if cmd == DD.bCMD_REGOK:
-            logging.debug('Registered correctly')
-            self._state = DD.S_REGISTERED
-            self._register_loop.stop()
-            self._cookie = msg.pop(0)
-            if isinstance(self._cookie, str):
-                self._cookie = self._cookie.encode('utf8')
-
-            # try:
-            #     scope = msg.pop(0)
-            #     self._scope = scope
-            # except:
-            #     pass
-            self._heartbeat_loop.start()
-            self._send(DD.bCMD_PING, [self._cookie])
-            for (topic, scopestr) in self._subscriptions:
-                self._send(
-                    DD.bCMD_SUB, [
-                        self._cookie, topic.encode(), scopestr.encode()])
-
-            self.on_reg()
-
+            self._on_message_regok(msg)
         elif cmd == DD.bCMD_DATA:
-            source = msg.pop(0)
-            if self._customer == b'public':
-                customer_source = source.decode().split('.')[0]
-                if customer_source in self._cust_boxes:
-                    # non-public --> public
-                    msg = self._cust_boxes[customer_source].decrypt(msg.pop())
-                else:
-                    # public --> public
-                    msg = self._cust_box.decrypt(msg.pop())
-            else:
-                customer_source = source.decode().split('.')[0]
-                if customer_source == 'public':
-                    # public --> non-public
-                    msg = self._pub_box.decrypt(msg.pop())
-                else:
-                    # non-public --> non-public
-                    msg = self._cust_box.decrypt(msg.pop())
-            self.on_data(source, msg)
+            self._on_message_data(msg)
         elif cmd == DD.bCMD_DATAPT:
             self.on_data(msg.pop(0), msg)
         elif cmd == DD.bCMD_PONG:
-            ioloop = zmq.eventloop.ioloop.IOLoop.current()
-            ioloop.add_timeout(ioloop.time() + 1.5, self._ping)
+            self._on_message_pong()
         elif cmd == DD.bCMD_CHALL:
-            logging.debug("Got challenge...")
-            self._state = DD.S_CHALLENGED
-            encryptednumber = msg.pop(0)
-            decryptednumber = self._dd_box.decrypt(encryptednumber)
-            # Send the decrypted number, his hash and his name for the
-            # registration
-            self._send(
-                DD.bCMD_CHALLOK, [
-                    decryptednumber, self._hash, self._name])
+            self._on_message_chall(msg)
         elif cmd == DD.bCMD_PUB:
-            src = msg.pop(0)
-            topic = msg.pop(0)
-            encryptmsg = msg.pop(0)
-            if self._customer == b'public':
-                src_customer = src.decode().split('.')[0]
-                if src_customer in self._cust_boxes:
-                    # non-public --> public
-                    decryptmsg = self._cust_boxes[
-                        src_customer].decrypt(encryptmsg)
-                else:
-                    # public --> public
-                    decryptmsg = self._cust_box.decrypt(encryptmsg)
-            else:
-                # non-public --> non-public
-                decryptmsg = self._cust_box.decrypt(encryptmsg)
-            self.on_pub(src, topic, decryptmsg)
+            self._on_message_pub(msg)
         elif cmd == DD.bCMD_PUBPUBLIC:
-            src = msg.pop(0)
-            topic = msg.pop(0)
-            self.on_pub(src, topic, msg)
+            self._on_message_pupublic(msg)
         elif cmd == DD.bCMD_SUBOK:
-            topic = msg.pop(0).decode()
-            scope = msg.pop(0).decode()
-            tt = "{0!s}{1!s}".format(topic, scope)
-            if tt not in self._sublist:
-                self._sublist.append(tt)
-            else:
-                logging.error("Already subscribed to topic %s", topic)
-                self._dealer.send_multipart(
-                    [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+            self._on_message_subok(msg)
         elif cmd == DD.bCMD_ERROR:
-            self.on_error(int.from_bytes(msg.pop(0), byteorder='little'), msg)
+            self._on_message_error(msg)
         else:
             logging.warning("Unknown message, got: %i %s", cmd, msg)
+
+    def _on_message_regok(self, msg):
+        logging.debug('Registered correctly')
+        self._state = DD.S_REGISTERED
+        self._register_loop.stop()
+        self._cookie = msg.pop(0)
+        if isinstance(self._cookie, str):
+            self._cookie = self._cookie.encode('utf8')
+        self._heartbeat_loop.start()
+        self._send(DD.bCMD_PING, [self._cookie])
+        for (topic, scopestr) in self._subscriptions:
+            self._send(
+                DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
+        self.on_reg()
+
+    def _on_message_data(self, msg):
+        source = msg.pop(0)
+        if self._customer == b'public':
+            customer_source = source.decode().split('.')[0]
+            if customer_source in self._cust_boxes:
+                # non-public --> public
+                msg = self._cust_boxes[customer_source].decrypt(msg.pop())
+            else:
+                # public --> public
+                msg = self._cust_box.decrypt(msg.pop())
+        else:
+            customer_source = source.decode().split('.')[0]
+            if customer_source == 'public':
+                # public --> non-public
+                msg = self._pub_box.decrypt(msg.pop())
+            else:
+                # non-public --> non-public
+                msg = self._cust_box.decrypt(msg.pop())
+        self.on_data(source, msg)
+
+    def _on_message_pong(self):
+        ioloop = zmq.eventloop.ioloop.IOLoop.current()
+        ioloop.add_timeout(ioloop.time() + 1.5, self._ping)
+
+    def _on_message_chall(self, msg):
+        logging.debug("Got challenge...")
+        self._state = DD.S_CHALLENGED
+        encryptednumber = msg.pop(0)
+        decryptednumber = self._dd_box.decrypt(encryptednumber)
+        # Send the decrypted number, his hash and his name for the
+        # registration
+        self._send(
+            DD.bCMD_CHALLOK, [
+                decryptednumber, self._hash, self._name])
+
+    def _on_message_pub(self, msg):
+        src = msg.pop(0)
+        topic = msg.pop(0)
+        encryptmsg = msg.pop(0)
+        if self._customer == b'public':
+            src_customer = src.decode().split('.')[0]
+            if src_customer in self._cust_boxes:
+                # non-public --> public
+                decryptmsg = self._cust_boxes[
+                    src_customer].decrypt(encryptmsg)
+            else:
+                # public --> public
+                decryptmsg = self._cust_box.decrypt(encryptmsg)
+        else:
+            # non-public --> non-public
+            decryptmsg = self._cust_box.decrypt(encryptmsg)
+        self.on_pub(src, topic, decryptmsg)
+
+    def _on_message_pubpublic(self, msg):
+        src = msg.pop(0)
+        topic = msg.pop(0)
+        self.on_pub(src, topic, msg)
+
+    def _on_message_subok(self, msg):
+        topic = msg.pop(0).decode()
+        scope = msg.pop(0).decode()
+        tt = "{0!s}{1!s}".format(topic, scope)
+        if tt not in self._sublist:
+            self._sublist.append(tt)
+        else:
+            logging.error("Already subscribed to topic %s", topic)
+            self._dealer.send_multipart(
+                [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+
+    def _on_message_error(self, msg):
+        self.on_error(int.from_bytes(msg.pop(0), byteorder='little'), msg)
 
     def _get_nonce(self):
         index = nacl.public.Box.NONCE_SIZE - 1

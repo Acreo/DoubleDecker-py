@@ -340,7 +340,7 @@ if __name__ == '__main__':
         name=args.name,
         dealerurl=args.dealer,
         customer=args.customer,
-     keyfile=args.keyfile)
+        keyfile=args.keyfile)
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")
