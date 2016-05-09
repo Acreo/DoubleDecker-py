@@ -1,0 +1,3 @@
+exclude_paths:
+- "doubledecker/broker.py"
+- "doubledecker/trie.py"
