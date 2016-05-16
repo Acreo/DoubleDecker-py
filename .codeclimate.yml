@@ -1,4 +1,4 @@
-ngines:
+engines:
   radon: 
     enabled: true
   pep8:
