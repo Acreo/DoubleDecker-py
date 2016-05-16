@@ -1,3 +1,16 @@
+engines:
+  radon: 
+    enabled: true
+  pep8:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - python
+ratings:
+  paths:
+    - "**.py"
 exclude_paths:
 - "doubledecker/broker.py"
 - "doubledecker/trie.py"
