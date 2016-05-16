@@ -121,10 +121,13 @@ class SecureCli(ClientSafe):
         self.choices = ["Subscribe", "Unsubscribe", "Exit"]
         self.update_main_text()
         self.main = urwid.Padding(self.menu(), left=2, right=2)
-        urwid.MainLoop(
-            self.main,
-            palette=[('reversed', 'standout', '')],
-            event_loop=urwid.TornadoEventLoop(genclient._IOLoop)).run()
+        try:
+            urwid.MainLoop(
+                self.main,
+                palette=[('reversed', 'standout', '')],
+                event_loop=urwid.TornadoEventLoop(genclient._IOLoop)).run()
+        except KeyboardInterrupt:
+            self.shutdown()
 
     def menu(self):
         self.body = [urwid.Text(self.main_text), urwid.Divider(div_char='~')]
@@ -178,7 +181,7 @@ class SecureCli(ClientSafe):
                 focus_map='reversed'))
 
         exit_button = urwid.Button("Quit DoubleDecker demo client")
-        urwid.connect_signal(exit_button, 'click', self.exit_program)
+        urwid.connect_signal(exit_button, 'click', self.exit_program, "")
         self.body.append(urwid.AttrMap(exit_button, None, focus_map='reversed'))
         self.body.append(urwid.Divider(div_char='~'))
         self.body.append(urwid.Text("Messages:"))

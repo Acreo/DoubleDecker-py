@@ -359,8 +359,7 @@ class ClientSafe(interface.Client):
         self.on_data(source, msg)
 
     def _on_message_pong(self):
-        ioloop = zmq.eventloop.ioloop.IOLoop.current()
-        ioloop.add_timeout(ioloop.time() + 1.5, self._ping)
+        self._IOLoop.add_timeout(self._IOLoop.time() + 1.5, self._ping)
 
     def _on_message_chall(self, msg):
         logging.debug("Got challenge...")
