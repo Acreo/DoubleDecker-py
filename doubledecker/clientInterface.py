@@ -128,7 +128,6 @@ class Client(metaclass=abc.ABCMeta):
         self._stream.close()
         logging.debug('Stopping IOloop')
         self._IOLoop.stop()
-        self._IOLoop.close()
         logging.debug('Closing socket')
         self._dealer.close()
         logging.debug('Terminating context')
