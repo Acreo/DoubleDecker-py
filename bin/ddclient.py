@@ -42,8 +42,8 @@ import json
 
 class SecureCli(ClientSafe):
 
-    def __init__(self, name, dealerurl, customer, keyfile):
-        super().__init__(name, dealerurl, customer, keyfile)
+    def __init__(self, name, dealerurl, keyfile):
+        super().__init__(name, dealerurl, keyfile)
         self.msg_list = deque(maxlen=10)
         self.messages = ""
         self.main_text = ""
@@ -295,9 +295,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generic message client")
     parser.add_argument('name', help="Identity of this client")
     parser.add_argument(
-        'customer',
-        help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
-    parser.add_argument(
         '-d',
         "--dealer",
         help='URL to connect DEALER socket to, "tcp://1.2.3.4:5555"',
@@ -342,7 +339,6 @@ if __name__ == '__main__':
     genclient = SecureCli(
         name=args.name,
         dealerurl=args.dealer,
-        customer=args.customer,
         keyfile=args.keyfile)
 
     logging.info("Starting DoubleDecker example client")

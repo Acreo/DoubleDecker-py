@@ -1,3 +1,4 @@
 doubledecker/broker.py
 doubledecker/trie.py
+doubledecker/clientInterface.py
 bin/ddbroker.py

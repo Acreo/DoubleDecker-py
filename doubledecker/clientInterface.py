@@ -67,22 +67,27 @@ class Client(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def on_pub(self, src, topic, msg):
+        """ callback for published messages """
         pass
 
     @abc.abstractmethod
     def on_data(self, src, msg):
+        """ callback for point to point messages """
         pass
 
     @abc.abstractmethod
     def on_reg(self):
+        """ callback at registration"""
         pass
 
     @abc.abstractmethod
     def on_discon(self):
+        """ callback at disconection """
         pass
 
     @abc.abstractmethod
     def on_error(self, code, msg):
+        """ callback for error messages"""
         pass
 
     @abc.abstractmethod

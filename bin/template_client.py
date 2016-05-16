@@ -35,8 +35,8 @@ from doubledecker.clientSafe import ClientSafe
 
 
 class SecureCli(ClientSafe):
-    def __init__(self, name, dealerurl, customer, keyfile):
-        super().__init__(name, dealerurl, customer, keyfile)
+    def __init__(self, name, dealerurl, keyfile):
+        super().__init__(name, dealerurl, keyfile)
 
     # callback called automatically everytime a point to point is sent at
     # destination to the current client
@@ -85,7 +85,6 @@ class SecureCli(ClientSafe):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generic message client")
     parser.add_argument('name', help="Identity of this client")
-    parser.add_argument('customer', help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
     parser.add_argument(
         '-d',
         "--dealer",
@@ -122,7 +121,6 @@ if __name__ == '__main__':
     logging.info("Safe client")
     genclient = SecureCli(name=args.name,
                           dealerurl=args.dealer,
-                          customer=args.customer,
                           keyfile=args.keyfile)
 
     logging.info("Starting DoubleDecker example client")
