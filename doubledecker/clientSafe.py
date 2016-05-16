@@ -419,20 +419,3 @@ class ClientSafe(interface.Client):
             except ValueError:
                 self._nonce[index] = 0
                 index -= 1
-
-    @staticmethod
-    def _cli_usage():
-        print("Commands: ")
-        print("help                     - show this help")
-        print(
-            "send        [client] [message] - send an encrypted message to client")
-        print(
-            "sendPT      [client] [message] - send a plain text message to client")
-        print(
-            "sendpublic  [public client] [message] - send message to a public client")
-        print("pub         [topic]  [message] - publish message on topic")
-        print(
-            "pubpublic   [topic]  [message] - publish message on public topic")
-        print("sub         [topic]            - subscribe to messages in topic")
-        print("unsub       [topic]            - subscribe to messages in topic")
-        print('exit                           - unregister and exit')

@@ -179,12 +179,5 @@ class Client(metaclass=abc.ABCMeta):
             self._register_loop.start()
             logging.debug('Trying to register')
 
-    @abc.abstractmethod
-    def _cli_usage(self):
-        # implemented in sub classes
-        pass
-
     def _ping(self):
         self._send(DD.bCMD_PING)
-
-
