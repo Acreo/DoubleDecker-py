@@ -49,14 +49,17 @@ class ClientSafe(metaclass=abc.ABCMeta):
 
         self._dealerurl = dealerurl
         self._dealer.connect(self._dealerurl)
-        self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
+        self._stream = zmq.eventloop.zmqstream.ZMQStream(
+            self._dealer, self._IOLoop)
         self._stream.on_recv(self._on_message)
 
-        self._register_loop = zmq.eventloop.ioloop.PeriodicCallback(self._ask_registration, 1000)
+        self._register_loop = zmq.eventloop.ioloop.PeriodicCallback(
+            self._ask_registration, 1000)
         self._register_loop.start()
         logging.debug('Trying to register')
 
-        self._heartbeat_loop = zmq.eventloop.ioloop.PeriodicCallback(self._heartbeat, 1500)
+        self._heartbeat_loop = zmq.eventloop.ioloop.PeriodicCallback(
+            self._heartbeat, 1500)
 
         logging.debug("Configured: name = %s, Dealer = %s",
                       name,
@@ -78,7 +81,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
 
         self._nonce = bytearray(nacl.utils.random(nacl.public.Box.NONCE_SIZE))
 
-        self.cmds = {DD.bCMD_REGOK:  self._on_message_regok,
+        self._cmds = {DD.bCMD_REGOK:  self._on_message_regok,
                      DD.bCMD_DATA: self._on_message_data,
                      DD.bCMD_DATAPT: self._on_message_datapt,
                      DD.bCMD_PONG: self._on_message_pong,
@@ -174,7 +177,8 @@ class ClientSafe(metaclass=abc.ABCMeta):
         if self._state == DD.S_REGISTERED:
             for topic in self._sublist:
                 logging.debug('Unsubscribing from %s', str(topic))
-                self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+                self._dealer.send_multipart(
+                    [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
 
             logging.debug('Unregistering from broker, safe')
             self._send(DD.bCMD_UNREG, [self._cookie])
@@ -220,7 +224,8 @@ class ClientSafe(metaclass=abc.ABCMeta):
             self._dealer = self._ctx.socket(zmq.DEALER)
             self._dealer.setsockopt(zmq.LINGER, 1000)
             self._dealer.connect(self._dealerurl)
-            self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
+            self._stream = zmq.eventloop.zmqstream.ZMQStream(
+                self._dealer, self._IOLoop)
             self._stream.on_recv(self._on_message)
 
             self._register_loop.start()
@@ -288,25 +293,25 @@ class ClientSafe(metaclass=abc.ABCMeta):
 
     @staticmethod
     def check_scope(scope_):
+        """ Rewites the scope into the internal representation """
         scope_ = scope_.strip().lower()
         if scope_ == 'all':
-            scopestr = "/"
+            return "/"
         elif scope_ == 'region':
-            scopestr = "/*/"
+            return "/*/"
         elif scope_ == "cluster":
-            scopestr = "/*/*/"
+            return "/*/*/"
         elif scope_ == "node":
-            scopestr = "/*/*/*/"
+            return "/*/*/*/"
         elif scope_ == "noscope":
-            scopestr = "noscope"
+            return "noscope"
         elif re.fullmatch(r"/((\d)+/)+", scope_):
             # check that scope only contains numbers and slashes
-            scopestr = scope_
-        else:
-            raise SyntaxError(
-                "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE,\
-                or specific values,e.g. /1/2/3/")
-        return scopestr
+            return scope_
+
+        raise SyntaxError(
+            "Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE,\
+            or specific values,e.g. /1/2/3/")
 
     def publish(self, topic, message):
         """ Publish a message on a topic
@@ -439,8 +444,8 @@ class ClientSafe(metaclass=abc.ABCMeta):
             logging.warning('Different protocols in use, message discarded')
             return
         cmd = msg.pop(0)
-        if cmd in self.cmds:
-            self.cmds[cmd](msg)
+        if cmd in self._cmds:
+            self._cmds[cmd](msg)
         else:
             logging.warning("Unknown message, got: %i %s", cmd, msg)
 
