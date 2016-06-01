@@ -158,7 +158,7 @@ if __name__ == '__main__':
         "--keyfile",
         help='File containing the encryption/authentication keys)',
         nargs='?',
-        default='')
+        required=True)
 
     parser.add_argument(
         '-t', "--topics",

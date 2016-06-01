@@ -1,3 +1,4 @@
+# coding=utf-8
 from __future__ import absolute_import, division, print_function, unicode_literals
 from builtins import super
 from builtins import dict
@@ -49,7 +50,7 @@ import zmq.eventloop.zmqstream
 import nacl.utils
 import nacl.public
 import nacl.encoding
-
+import struct
 from . import proto as DD
 from . import trie as trie
 
@@ -258,7 +259,7 @@ class Broker(with_metaclass(abc.ABCMeta)):
         if cmd in self.dealer_cmds:
             self.dealer_cmds[cmd](args=msg)
         else:
-            logging.warning('Ununderstood command from broker : {0:d}'.format(int.from_bytes(cmd, 'little')))
+            logging.warning('Ununderstood command from broker : {0:d}'.format(struct.unpack('>i',cmd)))
 
     def reg_ok(self, args):
         """
@@ -1099,7 +1100,7 @@ class BrokerSafe(Broker):
                 self.tenants.append(self.hashes[n]['r']+".")
         for cust in self.hashes.keys():
             cookie_string = self.hashes[cust]['R']
-            self.hashes[cust]['R'] = int(cookie_string).to_bytes(8,byteorder=sys.byteorder)
+            self.hashes[cust]['R'] = struct.pack('>l',int(cookie_string))
 
     def add_local_cli(self, identity, args):
         """
@@ -1679,8 +1680,6 @@ class BrokerUnsafe(Broker):
     :param pubsub:
     """
 
-    def __init__(self, name, routerurl, dealerurl, scope):
-        super().__init__(name, routerurl, dealerurl, scope)
 
     def forwardpt(self, source='', args=None):
         """
@@ -1768,7 +1767,7 @@ class BrokerUnsafe(Broker):
         """
         topic = msg[0].decode()
         topic_simple = topic  # without the scope
-        is_public = int.from_bytes(msg.pop(0), byteorder='little')
+        is_public = struct.unpack('>i',msg.pop(0))
 
         if topic[-1] != '$':
             topic = topic + '/' + self.scope + '/'
