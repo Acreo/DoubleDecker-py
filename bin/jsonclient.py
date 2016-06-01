@@ -1,5 +1,12 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+from builtins import dict
+from future import standard_library
+standard_library.install_aliases()
 __license__ = """
   Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 
@@ -42,7 +49,7 @@ import sys
 class SecureCli(ClientSafe):
 
     def __init__(self, name, dealerurl, customer, keyfile, topics):
-        super().__init__(name, dealerurl, customer, keyfile)
+        super(SecureCli).__init__(name, dealerurl, customer, keyfile)
         self.mytopics = list()
 
         try:

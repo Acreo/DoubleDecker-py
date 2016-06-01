@@ -1,7 +1,7 @@
 __author__ = 'eponsko'
 from setuptools import setup, find_packages
 setup(name='doubledecker',
-      version='0.3',
+      version='0.4',
       description='DoubleDecker client module and examples',
       url='http://acreo.github.io/DoubleDecker/',
       author='ponsko',
@@ -9,4 +9,4 @@ setup(name='doubledecker',
       license='LGPLv2.1',
       scripts=['bin/ddclient.py', 'bin/ddkeys.py', ],
       packages=find_packages(),
-      requires=['zmq', 'nacl'])
+      install_requires=['zmq', 'pynacl'])

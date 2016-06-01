@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
+from builtins import super
+from builtins import next
+from builtins import int
+from future import standard_library
+standard_library.install_aliases()
 """Implementation of a trie data structure.
 
 `Trie data structure <http://en.wikipedia.org/wiki/Trie>`_, also known as radix
@@ -39,6 +45,7 @@ __copyright__ = 'Copyright 2014 Google Inc.'
 
 
 import collections
+
 
 
 class ShortKeyError(KeyError):
@@ -537,7 +544,7 @@ class Trie(collections.MutableMapping):
         """
         for ret in self.prefixes(key):
             return ret
-        return (None, None)
+        return None, None
 
     def longest_prefix(self, key):
         """Finds the longest prefix of a key with a value.

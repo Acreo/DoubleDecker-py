@@ -1,4 +1,13 @@
 # coding=utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+from builtins import dict
+from builtins import open
+from builtins import bytes
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
+from six import with_metaclass
+
 import logging
 import json
 import re
@@ -10,11 +19,13 @@ import zmq.eventloop.zmqstream
 import nacl.utils
 import nacl.public
 import nacl.encoding
+from nacl.exceptions import CryptoError
 
 from . import proto as DD
 
+class ClientSafe(with_metaclass(abc.ABCMeta)):
 
-class ClientSafe(metaclass=abc.ABCMeta):
+#class ClientSafe(metaclass=abc.ABCMeta):
     """ DoubleDecker client with encryption and authentication """
 
     def __init__(self, name, dealerurl, keyfile, **kwargs):
@@ -231,9 +242,6 @@ class ClientSafe(metaclass=abc.ABCMeta):
             self._register_loop.start()
             logging.debug('Trying to register')
 
-    def _ping(self):
-        self._send(DD.bCMD_PING)
-
     def subscribe(self, topic, scope):
         """
         Subscribe to a topic with a given scope
@@ -244,7 +252,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
             SyntaxError if the scope doesn't follow the defined syntax
         """
         if self._state != DD.S_REGISTERED:
-            raise ConnectionError
+            raise RuntimeError("Not connected")
 
         scopestr = self.check_scope(scope)
 
@@ -273,7 +281,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
             Connection error if the fucntion is called while unregistered
         """
         if self._state != DD.S_REGISTERED:
-            raise ConnectionError
+            raise RuntimeError("Not connected")
 
         scopestr = self.check_scope(scope)
 
@@ -323,15 +331,18 @@ class ClientSafe(metaclass=abc.ABCMeta):
             ConnectionError if called while not registered
         """
         if self._state != DD.S_REGISTERED:
-            raise ConnectionError
+            raise RuntimeError("Not connected")
         if isinstance(topic, str):
-            topic = topic.encode('utf8')
+            topic = topic.encode()
         if isinstance(message, str):
-            message = message.encode('utf8')
+            message = message.encode()
+        from builtins import bytes
+        message = bytes(message)
+        #print("Message type: ", type(message))
+        encryptmsg = self._cust_box.encrypt(plaintext=message, nonce=self._get_nonce())
 
-        encryptmsg = self._cust_box.encrypt(message, self._get_nonce())
         self._dealer.send_multipart(
-            [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg])
+            [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg.nonce + encryptmsg.ciphertext])
 
     def publish_public(self, topic, message):
         """ Publish a message to a public topic
@@ -344,7 +355,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
             ConnectionError if called while not registered
         """
         if self._state != DD.S_REGISTERED:
-            raise ConnectionError
+            raise RuntimeError("Not connected")
         if isinstance(topic, str):
             topic = topic.encode('utf8')
         if isinstance(message, str):
@@ -352,7 +363,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
 
         encryptmsg = self._pub_box.encrypt(message, self._get_nonce())
         self._dealer.send_multipart(
-            [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg])
+            [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg.nonce + encryptmsg.ciphertext])
 
     def sendmsg(self, dst, msg):
         """ Send a notification
@@ -364,7 +375,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
             ConnectionError if called while not registered
         """
         if self._state != DD.S_REGISTERED:
-            raise ConnectionError
+            raise RuntimeError("Not connected")
 
         if isinstance(msg, str):
             msg = msg.encode('utf8')
@@ -387,13 +398,11 @@ class ClientSafe(metaclass=abc.ABCMeta):
             # non-public --> public
             msg = self._pub_box.encrypt(msg, self._get_nonce())
             # print("Sending encrypted data to %s" % dst.decode('utf8'))
-            self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
+            self._send(DD.bCMD_SEND, [self._cookie, dst, msg.nonce + msg.ciphertext])
         else:
             # non-public --> non-public
             msg = self._cust_box.encrypt(msg, self._get_nonce())
-            # print("Sending encrypted data to %s" % dst.decode('utf8'))
-            # print("self.R: ", type(self.R), " dst: ", type(dst), " msg:", type(msg) )
-            self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
+            self._send(DD.bCMD_SEND, [self._cookie, dst, msg.nonce + msg.ciphertext])
 
     def sendmsg_public(self, dst, msg):
         dst_is_public = True
@@ -412,13 +421,12 @@ class ClientSafe(metaclass=abc.ABCMeta):
             # public --> public
             msg = self._cust_box.encrypt(msg, self._get_nonce())
             # print("Sending encrypted data to %s" % dst.decode('utf8'))
-            self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
+            self._send(DD.bCMD_SEND, [self._cookie, dst, msg.nonce + msg.ciphertext])
         else:
             # public --> non-public
-            msg = self._cust_boxes[customer_dst].encrypt(
-                msg, self._get_nonce())
+            msg = self._cust_boxes[customer_dst].encrypt(msg, self._get_nonce())
             # print("Sending encrypted data to %s" % dst.decode('utf8'))
-            self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
+            self._send(DD.bCMD_SEND, [self._cookie, dst, msg.nonce + msg.ciphertext])
 
     def _ping(self):
         """ sends the ping to keep the connection with the broker alive """
@@ -455,7 +463,7 @@ class ClientSafe(metaclass=abc.ABCMeta):
         self._register_loop.stop()
         self._cookie = msg.pop(0)
         if isinstance(self._cookie, str):
-            self._cookie = self._cookie.encode('utf8')
+            self._cookie = self._cookie.encode()
         self._heartbeat_loop.start()
         self._send(DD.bCMD_PING, [self._cookie])
         for (topic, scopestr) in self._subscriptions:
@@ -465,22 +473,24 @@ class ClientSafe(metaclass=abc.ABCMeta):
 
     def _on_message_data(self, msg):
         source = msg.pop(0)
+        encrypted = msg.pop()
+
         if self._is_public:
             customer_source = source.decode().split('.')[0]
             if customer_source in self._cust_boxes:
                 # non-public --> public
-                msg = self._cust_boxes[customer_source].decrypt(msg.pop())
+                msg = self._cust_boxes[customer_source].decrypt(encrypted)
             else:
                 # public --> public
-                msg = self._cust_box.decrypt(msg.pop())
+                msg = self._cust_box.decrypt(encrypted)
         else:
             customer_source = source.decode().split('.')[0]
             if customer_source == 'public':
                 # public --> non-public
-                msg = self._pub_box.decrypt(msg.pop())
+                msg = self._pub_box.decrypt(encrypted)
             else:
                 # non-public --> non-public
-                msg = self._cust_box.decrypt(msg.pop())
+                msg = self._cust_box.decrypt(encrypted)
         self.on_data(source, msg)
 
     def _on_message_datapt(self, msg):
@@ -503,12 +513,19 @@ class ClientSafe(metaclass=abc.ABCMeta):
         src = msg.pop(0)
         topic = msg.pop(0)
         encryptmsg = msg.pop(0)
+        print("_on_message_pub, message: ", encryptmsg)
+        print("_on_message_pub, type: ", type(encryptmsg))
+
+     #   from builtins import bytes
+     #   encryptmsg = bytes(encryptmsg)
+     #   print("2_on_message_pub, message: ", encryptmsg)
+     #   print("2_on_message_pub, type: ", type(encryptmsg))
+
         if self._is_public:
             src_customer = src.decode().split('.')[0]
             if src_customer in self._cust_boxes:
                 # non-public --> public
-                decryptmsg = self._cust_boxes[
-                    src_customer].decrypt(encryptmsg)
+                decryptmsg = self._cust_boxes[src_customer].decrypt(encryptmsg)
             else:
                 # public --> public
                 decryptmsg = self._cust_box.decrypt(encryptmsg)
@@ -534,7 +551,13 @@ class ClientSafe(metaclass=abc.ABCMeta):
                 [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
 
     def _on_message_error(self, msg):
-        self.on_error(int.from_bytes(msg.pop(0), byteorder='little'), msg)
+        import struct
+        from builtins import int
+        data = msg.pop(0)
+        error_code = struct.unpack('<i',data)[0]
+        #error_code = int(data)
+        print("Unpacked: ", data, " to error_code: ", error_code)
+        self.on_error(error_code, msg)
 
     def _get_nonce(self):
         index = nacl.public.Box.NONCE_SIZE - 1

@@ -1,3 +1,13 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
+from builtins import super
+from builtins import dict
+from builtins import open
+from builtins import str
+from builtins import int
+from six import with_metaclass
+from future import standard_library
+standard_library.install_aliases()
+
 __license__ = """
   Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 
@@ -46,7 +56,7 @@ from . import trie as trie
 from pprint import pprint
 
 
-class Broker(object, metaclass=abc.ABCMeta):
+class Broker(with_metaclass(abc.ABCMeta)):
     """
     Base broker class
     :param name:
@@ -139,7 +149,7 @@ class Broker(object, metaclass=abc.ABCMeta):
 
 #                            DD.bCMD_NAMEREQ: self.namerequest}
 
-        self.router.setsockopt(zmq.IDENTITY, self.name)
+
 
         try:
             for url in self.routerurl.split(','):
@@ -153,7 +163,7 @@ class Broker(object, metaclass=abc.ABCMeta):
 
         self.router_stream.on_recv(self.on_router_msg, self.IOLoop)
 
-        self.dealer.setsockopt(zmq.IDENTITY, self.name)
+
         if self.dealerurl != '':
             self.dealer.connect(self.dealerurl)
             self.dealer_stream.on_recv(self.on_dealer_msg)

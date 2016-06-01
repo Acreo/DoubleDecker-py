@@ -1,3 +1,9 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
+from builtins import dict
+from builtins import open
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
 __license__ = """
   Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 

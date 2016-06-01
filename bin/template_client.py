@@ -1,5 +1,13 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+from builtins import super
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
 __license__ = """
   Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 
@@ -35,9 +43,6 @@ from doubledecker.clientSafe import ClientSafe
 
 
 class SecureCli(ClientSafe):
-    def __init__(self, name, dealerurl, keyfile):
-        super().__init__(name, dealerurl, keyfile)
-
     # callback called automatically everytime a point to point is sent at
     # destination to the current client
     def on_data(self, src, msg):
@@ -74,7 +79,18 @@ class SecureCli(ClientSafe):
 
     # callback called when the client receives an error message
     def on_error(self, code, msg):
-        print("ERROR n#{0:d} : {1!s}".format(code, msg))
+        E_REGFAIL = 1
+        E_NODST = 2
+        E_VERSION = 3
+
+        if code == E_REGFAIL:
+            print("ERROR: Failed to registed: ",msg)
+        elif code == E_NODST:
+            print("ERROR: No Destination: ", msg)
+        elif code == E_VERSION:
+            print("ERROR: Wrong protocol version!")
+        else:
+            print("ERROR n#{0:d} : {1!s}".format(code, msg))
 
     # callback called when the client receives a message on a topic he
     # subscribed to previously
