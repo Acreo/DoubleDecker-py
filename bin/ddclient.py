@@ -41,8 +41,8 @@ from doubledecker.clientSafe import ClientSafe
 import urwid
 from collections import deque
 import time
-import datetime
 import json
+import datetime
 
 # Inherit ClientSafe and implement the abstract classes
 # ClientSafe does encryption and authentication using ECC (libsodium/nacl)
@@ -50,26 +50,6 @@ import json
 
 class SecureCli(ClientSafe):
 
-    def __init__(self, name, dealerurl, keyfile):
-        super(SecureCli).__init__(name, dealerurl, keyfile)
-        self.msg_list = deque(maxlen=10)
-        self.messages = ""
-        self.main_text = ""
-
-        self.pub_msg = ""
-        self.pub_topic = ""
-
-        self.notify_dest = ""
-        self.notify_msg = ""
-
-        self.sub_scope = ""
-        self.sub_topic = ""
-
-        self.unsub_scope = ""
-        self.unsub_topic = ""
-
-        self.subscriptions = []
-        self.registered = False
 
     def add_msg(self, msg):
         st = datetime.datetime.fromtimestamp(time.time()).strftime('%H:%M:%S')
@@ -126,6 +106,24 @@ class SecureCli(ClientSafe):
             pass
 
     def run(self):
+        self.msg_list = deque(maxlen=10)
+        self.messages = ""
+        self.main_text = ""
+
+        self.pub_msg = ""
+        self.pub_topic = ""
+
+        self.notify_dest = ""
+        self.notify_msg = ""
+
+        self.sub_scope = ""
+        self.sub_topic = ""
+
+        self.unsub_scope = ""
+        self.unsub_topic = ""
+
+        self.subscriptions = []
+        self.registered = False
         self.choices = ["Subscribe", "Unsubscribe", "Exit"]
         self.update_main_text()
         self.main = urwid.Padding(self.menu(), left=2, right=2)

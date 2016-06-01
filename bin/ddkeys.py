@@ -38,6 +38,7 @@ from doubledecker.generateKeys import generate_keys
 import pprint
 
 names = input("List of customers (csv): ")
+print("Names: ", names)
 broker, system, customer = generate_keys(names)
 
 

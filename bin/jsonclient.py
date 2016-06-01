@@ -48,20 +48,6 @@ import sys
 
 class SecureCli(ClientSafe):
 
-    def __init__(self, name, dealerurl, customer, keyfile, topics):
-        super(SecureCli).__init__(name, dealerurl, customer, keyfile)
-        self.mytopics = list()
-
-        try:
-            for top in topics.split(","):
-                if not len:
-                    return
-                (topic, scope) = top.split("/")
-                self.mytopics.append((topic, scope))
-        except ValueError:
-            logging.error("Could not parse topics!")
-            sys.exit(1)
-
     def on_data(self, src, data):
         msg = dict()
         msg["type"] = "data"
@@ -119,7 +105,17 @@ class SecureCli(ClientSafe):
         else:
             print(json.dumps({"type": "error", "data": "Couldn't parse JSON"}))
 
-    def run(self):
+    def run(self,topics):
+        self.mytopics = list()
+        try:
+            for top in topics.split(","):
+                if not len:
+                    return
+                (topic, scope) = top.split("/")
+                self.mytopics.append((topic, scope))
+        except ValueError:
+            logging.error("Could not parse topics!")
+            sys.exit(1)
         self.start()
 
     def exit_program(self, *args):
@@ -190,8 +186,7 @@ if __name__ == '__main__':
         name=args.name,
         dealerurl=args.dealer,
         customer=args.customer,
-        keyfile=args.keyfile,
-     topics=args.topics)
+        keyfile=args.keyfile)
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")
@@ -199,4 +194,4 @@ if __name__ == '__main__':
         sys.stdin,
         genclient.on_stdin,
      genclient._IOLoop.READ)
-    genclient.run()
+    genclient.run(args.topics)

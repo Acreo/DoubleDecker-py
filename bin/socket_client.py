@@ -62,27 +62,6 @@ class RateMonServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 class SecureCli(ClientSafe):
-    def __init__(self, name, dealerurl, customer, keyfile):
-        super().__init__(name, dealerurl, customer, keyfile)
-
-        self.b = True
-
-        context = zmq.Context.instance()
-        self.handlers = context.socket(zmq.REP)
-        self.handlers.bind('inproc://handlers')
-
-        self.handlersThread = threading.Thread(
-            target=self.results_sender)
-
-        self.tcp_server = RateMonServer(('127.0.0.1', 9999),
-                                        MonitoringDataHandler)
-        self.tcp_server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.tcp_server.daemon = True
-        self.serverThread = threading.Thread(
-            target=self.tcp_server.serve_forever)
-
-        self.tcp_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
     # callback called automatically everytime a point to point is sent at
     # destination to the current client
     def on_data(self, src, msg):
@@ -120,16 +99,34 @@ class SecureCli(ClientSafe):
         print("PUB {0!s} from {1!s}: {2!s}".format(str(topic), str(src), str(msg)))
 
     def start(self):
+        self.b = True
+
+        context = zmq.Context.instance()
+        self.handlers = context.socket(zmq.REP)
+        self.handlers.bind('inproc://handlers')
+
+        self.handlersThread = threading.Thread(
+            target=self.results_sender)
+
+        self.tcp_server = RateMonServer(('127.0.0.1', 9999),
+                                        MonitoringDataHandler)
+        self.tcp_server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.tcp_server.daemon = True
+        self.serverThread = threading.Thread(
+            target=self.tcp_server.serve_forever)
+
+        self.tcp_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
         self.serverThread.start()
         self.handlersThread.start()
-        super().start()
+        super(SecureCli).start()
 
     def shutdown(self):
         self.serverThread.join()
         self.handlersThread.join()
         self.tcp_server.shutdown()
         self.tcp_server.server_close()
-        super().shutdown()
+        super(SecureCli).shutdown()
 
     def results_sender(self):
         while True:

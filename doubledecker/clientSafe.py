@@ -19,13 +19,10 @@ import zmq.eventloop.zmqstream
 import nacl.utils
 import nacl.public
 import nacl.encoding
-from nacl.exceptions import CryptoError
 
 from . import proto as DD
 
 class ClientSafe(with_metaclass(abc.ABCMeta)):
-
-#class ClientSafe(metaclass=abc.ABCMeta):
     """ DoubleDecker client with encryption and authentication """
 
     def __init__(self, name, dealerurl, keyfile, **kwargs):
@@ -313,7 +310,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             return "/*/*/*/"
         elif scope_ == "noscope":
             return "noscope"
-        elif re.fullmatch(r"/((\d)+/)+", scope_):
+        elif re.match(r"/((\d)+/)+", scope_):
             # check that scope only contains numbers and slashes
             return scope_
 
@@ -513,13 +510,6 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         src = msg.pop(0)
         topic = msg.pop(0)
         encryptmsg = msg.pop(0)
-        print("_on_message_pub, message: ", encryptmsg)
-        print("_on_message_pub, type: ", type(encryptmsg))
-
-     #   from builtins import bytes
-     #   encryptmsg = bytes(encryptmsg)
-     #   print("2_on_message_pub, message: ", encryptmsg)
-     #   print("2_on_message_pub, type: ", type(encryptmsg))
 
         if self._is_public:
             src_customer = src.decode().split('.')[0]
@@ -552,11 +542,9 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
 
     def _on_message_error(self, msg):
         import struct
-        from builtins import int
+
         data = msg.pop(0)
         error_code = struct.unpack('<i',data)[0]
-        #error_code = int(data)
-        print("Unpacked: ", data, " to error_code: ", error_code)
         self.on_error(error_code, msg)
 
     def _get_nonce(self):
