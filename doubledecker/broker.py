@@ -709,12 +709,6 @@ class Broker(with_metaclass(abc.ABCMeta)):
         self.sub_north_sock.send_multipart([msg])
         self.sub_south_sock.send_multipart([msg])
 
-#        print("END subscrioptions: ")
-#        pprint(self.subscriptions)
-#        print("END topic_south:")
-#        pprint(self.topic_south)
-#        print("END topics_trie:")
-#        pprint(self.topics_trie)
 
     #
     # Definition of the behavior in case of message received from the broker

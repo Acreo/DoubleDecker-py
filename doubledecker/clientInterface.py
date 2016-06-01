@@ -1,3 +1,4 @@
+# coding=utf-8
 from __future__ import absolute_import, division, print_function, unicode_literals
 from builtins import str
 from future import standard_library
@@ -208,8 +209,6 @@ class Client(with_metaclass(abc.ABCMeta)):
 
             self._dealer = self._ctx.socket(zmq.DEALER)
             self._dealer.setsockopt(zmq.LINGER, 1000)
-            if not self._safe:
-                self._dealer.setsockopt(zmq.IDENTITY, self._customer_name)
             self._dealer.connect(self._dealerurl)
             self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
             self._stream.on_recv(self._on_message)
