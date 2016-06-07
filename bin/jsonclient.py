@@ -53,6 +53,10 @@ class SecureCli(ClientSafe):
         msg["type"] = "data"
         msg["src"] = src.decode()
         msg["data"] = data.decode()
+        try:
+            msg["data"] = json.loads(msg["data"])
+        except ValueError:
+            pass
         print(json.dumps(msg))
 
     def on_reg(self):
@@ -86,14 +90,15 @@ class SecureCli(ClientSafe):
         data = fp.readline()
         try:
             res = json.loads(data)
-        except ValueError:
+        except ValueError as e:
+            print("Caught error while reading stdin, ", e) 
             res = dict()
 
         if "type" in res:
             if res['type'] == "notify":
-                self.sendmsg(res['dst'], res['data'])
+                self.sendmsg(res['dst'], json.dumps(res['data']))
             elif res['type'] == "pub":
-                self.publish(res['topic'], res['data'])
+                self.publish(res['topic'], json.dumps(res['data']))
             elif res['type'] == "sub":
                 self.subscribe(res['topc'], res['scope'])
             else:
@@ -190,7 +195,7 @@ if __name__ == '__main__':
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")
-    genclient._IOLoop.add_handler(
+    res =  genclient._IOLoop.add_handler(
         sys.stdin,
         genclient.on_stdin,
      genclient._IOLoop.READ)
