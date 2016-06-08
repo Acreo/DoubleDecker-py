@@ -4,3 +4,4 @@ PyNaCl
 tornado
 cffi
 urwid
+future
