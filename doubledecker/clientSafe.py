@@ -476,18 +476,35 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             customer_source = source.decode().split('.')[0]
             if customer_source in self._cust_boxes:
                 # non-public --> public
-                msg = self._cust_boxes[customer_source].decrypt(encrypted)
+                try:
+                    msg = self._cust_boxes[customer_source].decrypt(encrypted)
+                except ValueError as e:
+                    logging.error("Got message that couldn't be decrypted: " + str(e))
+                    return
             else:
                 # public --> public
-                msg = self._cust_box.decrypt(encrypted)
+                try:
+                    msg = self._cust_box.decrypt(encrypted)
+                except ValueError as e:
+                    logging.error("Got message that couldn't be decrypted: " + str(e))
+                    return
         else:
             customer_source = source.decode().split('.')[0]
             if customer_source == 'public':
                 # public --> non-public
-                msg = self._pub_box.decrypt(encrypted)
+                try:
+                    msg = self._pub_box.decrypt(encrypted)
+                except ValueError as e:
+                    logging.error("Got message that couldn't be decrypted: " + str(e))
+                    return
             else:
                 # non-public --> non-public
-                msg = self._cust_box.decrypt(encrypted)
+                try:
+                    msg = self._cust_box.decrypt(encrypted)
+                except ValueError as e:
+                    logging.error("Got message that couldn't be decrypted: " + str(e))
+                    return
+
         self.on_data(source, msg)
 
     def _on_message_datapt(self, msg):
@@ -500,11 +517,13 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         logging.debug("Got challenge...")
         self._state = DD.S_CHALLENGED
         encryptednumber = msg.pop(0)
-        decryptednumber = self._dd_box.decrypt(encryptednumber)
+        try:
+            decryptednumber = self._dd_box.decrypt(encryptednumber)
+        except ValueError as e:
+            logging.error("Got message that couldn't be decrypted: " + str(e))
+            return
         # Sends the decrypted number, its hash and name for the registration
-        self._send(
-            DD.bCMD_CHALLOK, [
-                decryptednumber, self._hash, self._name])
+        self._send(DD.bCMD_CHALLOK, [decryptednumber, self._hash, self._name])
 
     def _on_message_pub(self, msg):
         src = msg.pop(0)
@@ -515,13 +534,26 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             src_customer = src.decode().split('.')[0]
             if src_customer in self._cust_boxes:
                 # non-public --> public
-                decryptmsg = self._cust_boxes[src_customer].decrypt(encryptmsg)
+                try:
+                    decryptmsg = self._cust_boxes[src_customer].decrypt(encryptmsg)
+                except ValueError as e:
+                    logging.error("Got message that couldn't be decrypted: " + str(e))
+                    return
             else:
                 # public --> public
-                decryptmsg = self._cust_box.decrypt(encryptmsg)
+                try:
+                    decryptmsg = self._cust_box.decrypt(encryptmsg)
+                except ValueError as e:
+                    logging.error("Got message that couldn't be decrypted: " + str(e))
+                    return
         else:
             # non-public --> non-public
-            decryptmsg = self._cust_box.decrypt(encryptmsg)
+            try:
+                decryptmsg = self._cust_box.decrypt(encryptmsg)
+            except ValueError as e:
+                logging.error("Got message that couldn't be decrypted: " + str(e))
+                return
+
         self.on_pub(src, topic, decryptmsg)
 
     def _on_message_pubpublic(self, msg):
