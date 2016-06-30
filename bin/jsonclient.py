@@ -84,7 +84,12 @@ class SecureCli(ClientSafe):
         msg["src"] = src.decode()
         msg["topic"] = topic.decode()
         msg["data"] = data.decode()
+        try:
+            msg["data"] = json.loads(msg["data"])
+        except ValueError:
+            pass
         print(json.dumps(msg))
+        
 
     def on_stdin(self, fp, *kargs):
         data = fp.readline()
