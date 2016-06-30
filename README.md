@@ -14,7 +14,7 @@ DoubleDecker requires Python > 3.3. To install on Ubuntu 15.10, run the install.
 apt-get update
 apt-get install python3-setuptools python3-nacl python3-zmq python3-urwid python3-tornado git
 # clone the code
-git clone https://github.com/Acreo/DoubleDecker.git
+git clone https://github.com/Acreo/DoubleDecker-py.git
 # install the doubledecker module and scripts
 cd DoubleDecker-py
 sudo python3 setup.py install
