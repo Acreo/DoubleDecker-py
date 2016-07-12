@@ -23,7 +23,7 @@ import threading
 from . import proto as DD
 
 class ClientSafe(with_metaclass(abc.ABCMeta)):
-            """ DoubleDecker client with encryption and authentication """
+    """ DoubleDecker client with encryption and authentication """
 
     def __init__(self, name, dealerurl, keyfile, **kwargs):
         """ initialise the class
