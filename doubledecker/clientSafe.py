@@ -23,7 +23,7 @@ import threading
 from . import proto as DD
 
 class ClientSafe(with_metaclass(abc.ABCMeta)):
-    """ DoubleDecker client with encryption and authentication """
+            """ DoubleDecker client with encryption and authentication """
 
     def __init__(self, name, dealerurl, keyfile, **kwargs):
         """ initialise the class
@@ -433,15 +433,16 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
 
     def _ask_registration(self):
         """ initiate the registration with the broker """
-        self._dealer.setsockopt(zmq.LINGER, 0)
-        self._stream.close()
-        self._dealer.close()
-        self._dealer = self._ctx.socket(zmq.DEALER)
-        self._dealer.setsockopt(zmq.LINGER, 1000)
-        self._dealer.connect(self._dealerurl)
-        self._stream = zmq.eventloop.zmqstream.ZMQStream(
-            self._dealer, self._IOLoop)
-        self._stream.on_recv(self._on_message)
+        with self._sendLock:
+            self._dealer.setsockopt(zmq.LINGER, 0)
+            self._stream.close()
+            self._dealer.close()
+            self._dealer = self._ctx.socket(zmq.DEALER)
+            self._dealer.setsockopt(zmq.LINGER, 1000)
+            self._dealer.connect(self._dealerurl)
+            self._stream = zmq.eventloop.zmqstream.ZMQStream(
+                self._dealer, self._IOLoop)
+            self._stream.on_recv(self._on_message)
         self._send(DD.bCMD_ADDLCL, [self._hash])
 
     def _on_message(self, msg):
