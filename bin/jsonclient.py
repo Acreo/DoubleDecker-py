@@ -6,6 +6,7 @@ from __future__ import division
 from __future__ import absolute_import
 from builtins import dict
 from future import standard_library
+
 standard_library.install_aliases()
 __license__ = """
   Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
@@ -33,7 +34,6 @@ __license__ = """
   see <http://www.gnu.org/licenses/>.
 """
 
-
 import argparse
 import logging
 from doubledecker.clientSafe import ClientSafe
@@ -47,7 +47,6 @@ import sys
 
 
 class SecureCli(ClientSafe):
-
     def on_data(self, src, data):
         msg = dict()
         msg["type"] = "data"
@@ -74,8 +73,8 @@ class SecureCli(ClientSafe):
     def on_error(self, code, error):
         msg = dict()
         msg["type"] = "error"
-        msg["code"] = code.decode()
-        msg["error"] = error.decode()
+        msg["code"] = code
+        msg["error"] = error
         print(json.dumps(msg))
 
     def on_pub(self, src, topic, data):
@@ -89,14 +88,13 @@ class SecureCli(ClientSafe):
         except ValueError:
             pass
         print(json.dumps(msg))
-        
 
     def on_stdin(self, fp, *kargs):
         data = fp.readline()
         try:
             res = json.loads(data)
         except ValueError as e:
-            print("Caught error while reading stdin, ", e) 
+            print("Caught error while reading stdin, ", e)
             res = dict()
 
         if "type" in res:
@@ -115,17 +113,18 @@ class SecureCli(ClientSafe):
         else:
             print(json.dumps({"type": "error", "data": "Couldn't parse JSON"}))
 
-    def run(self,topics):
+    def run(self, topics):
         self.mytopics = list()
-        try:
-            for top in topics.split(","):
-                if not len:
-                    return
-                (topic, scope) = top.split("/")
-                self.mytopics.append((topic, scope))
-        except ValueError:
-            logging.error("Could not parse topics!")
-            sys.exit(1)
+        if topics:
+            try:
+                for top in topics.split(","):
+                    if not len:
+                        return
+                    (topic, scope) = top.split("/")
+                    self.mytopics.append((topic, scope))
+            except ValueError:
+                logging.error("Could not parse topics!")
+                sys.exit(1)
         self.start()
 
     def exit_program(self, *args):
@@ -135,9 +134,6 @@ class SecureCli(ClientSafe):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generic message client")
     parser.add_argument('name', help="Identity of this client")
-    parser.add_argument(
-        'customer',
-     help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
     parser.add_argument(
         '-d',
         "--dealer",
@@ -173,7 +169,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-t', "--topics",
         help='Comma separated list of topics/scopes, e.g. "topic1/all,topic2/node"',
-        nargs='?', default='')
+        nargs='?', default=None)
 
     args = parser.parse_args()
 
@@ -181,27 +177,14 @@ if __name__ == '__main__':
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: {0!s}'.format(args.loglevel))
     if args.logfile:
-        logging.basicConfig(
-            format='%(levelname)s:%(message)s',
-            filename=args.logfile,
-            level=numeric_level)
+        logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
     else:
-        logging.basicConfig(
-            format='%(levelname)s:%(message)s',
-            filename=args.logfile,
-            level=numeric_level)
+        logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
 
     logging.info("Safe client")
-    genclient = SecureCli(
-        name=args.name,
-        dealerurl=args.dealer,
-        customer=args.customer,
-        keyfile=args.keyfile)
+    genclient = SecureCli(name=args.name, dealerurl=args.dealer, keyfile=args.keyfile, threaded=False)
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")
-    res =  genclient._IOLoop.add_handler(
-        sys.stdin,
-        genclient.on_stdin,
-     genclient._IOLoop.READ)
+    res = genclient._IOLoop.add_handler(sys.stdin, genclient.on_stdin, genclient._IOLoop.READ)
     genclient.run(args.topics)

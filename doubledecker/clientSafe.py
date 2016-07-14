@@ -5,6 +5,7 @@ from builtins import open
 from builtins import bytes
 from builtins import str
 from future import standard_library
+
 standard_library.install_aliases()
 from six import with_metaclass
 
@@ -22,17 +23,18 @@ import nacl.encoding
 import threading
 from . import proto as DD
 
+
 class ClientSafe(with_metaclass(abc.ABCMeta)):
     """ DoubleDecker client with encryption and authentication """
 
-    def __init__(self, name, dealerurl, keyfile, **kwargs):
+    def __init__(self, name, dealerurl, keyfile, threaded=False, **kwargs):
         """ initialise the class
 
         Args:
             name: name used to identify the client within the architecture
             dealerurl: address to reach the broker (e.g. tcp://localhost:5555)
-            customer: name of the tenant of the client
             keyfile: link to the file containing the keys pair
+            threaded: set to True if you're in a threaded environment
         Raises:
             RuntimeError if the keyfile can't be found
         """
@@ -49,6 +51,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         self._cookie = ''
         self._subscriptions = list()
         self._name = name
+        self._threaded = threaded
         self._sendLock = threading.Lock()
 
         if isinstance(name, str):
@@ -58,21 +61,25 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
 
         self._dealerurl = dealerurl
         self._dealer.connect(self._dealerurl)
-        self._stream = zmq.eventloop.zmqstream.ZMQStream(
-            self._dealer, self._IOLoop)
+        self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
         self._stream.on_recv(self._on_message)
 
-        self._register_loop = zmq.eventloop.ioloop.PeriodicCallback(
-            self._ask_registration, 1000)
+        if self._threaded:
+            logging.info("Running in threaded mode, starting internal sockets")
+            self._pullsock = self._ctx.socket(zmq.PULL)
+            self._pushsock = self._ctx.socket(zmq.PUSH)
+            self._pullsock.bind("inproc://pullsock")
+            self._pushsock.connect("inproc://pullsock")
+            self._pull_stream = zmq.eventloop.zmqstream.ZMQStream(self._pullsock, self._IOLoop)
+            self._pull_stream.on_recv(self._on_pull)
+
+        self._register_loop = zmq.eventloop.ioloop.PeriodicCallback(self._ask_registration, 1000)
         self._register_loop.start()
         logging.debug('Trying to register')
 
-        self._heartbeat_loop = zmq.eventloop.ioloop.PeriodicCallback(
-            self._heartbeat, 1500)
+        self._heartbeat_loop = zmq.eventloop.ioloop.PeriodicCallback(self._heartbeat, 1500)
 
-        logging.debug("Configured: name = %s, Dealer = %s",
-                      name,
-                      dealerurl)
+        logging.debug("Configured: name = %s, Dealer = %s", name, dealerurl)
 
         filename = keyfile
 
@@ -84,68 +91,48 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             raise
 
         if 'public' in key:
-            self.init_public(key)
+            self._init_public(key)
         else:
-            self.init_non_public(key)
+            self._init_non_public(key)
 
         self._nonce = bytearray(nacl.utils.random(nacl.public.Box.NONCE_SIZE))
 
-        self._cmds = {DD.bCMD_REGOK:  self._on_message_regok,
-                     DD.bCMD_DATA: self._on_message_data,
-                     DD.bCMD_DATAPT: self._on_message_datapt,
-                     DD.bCMD_PONG: self._on_message_pong,
-                     DD.bCMD_CHALL: self._on_message_chall,
-                     DD.bCMD_PUB: self._on_message_pub,
-                     DD.bCMD_PUBPUBLIC: self._on_message_pubpublic,
-                     DD.bCMD_SUBOK: self._on_message_subok,
-                     DD.bCMD_ERROR: self._on_message_error}
+        self._cmds = {DD.bCMD_REGOK: self._on_message_regok,
+                      DD.bCMD_DATA: self._on_message_data,
+                      DD.bCMD_DATAPT: self._on_message_datapt,
+                      DD.bCMD_PONG: self._on_message_pong,
+                      DD.bCMD_CHALL: self._on_message_chall,
+                      DD.bCMD_PUB: self._on_message_pub,
+                      DD.bCMD_PUBPUBLIC: self._on_message_pubpublic,
+                      DD.bCMD_SUBOK: self._on_message_subok,
+                      DD.bCMD_ERROR: self._on_message_error}
 
-    def init_public(self, key):
+    def _init_public(self, key):
         self._is_public = True
-        self._sendmsg = self.sendmsg_public
-        self._privkey = nacl.public.PrivateKey(
-            key['public']['privkey'],
-            encoder=nacl.encoding.Base64Encoder)
-        self._pubkey = nacl.public.PublicKey(
-            key['public']['pubkey'],
-            encoder=nacl.encoding.Base64Encoder)
+        self._sendmsg = self._sendmsg_public
+        self._privkey = nacl.public.PrivateKey(key['public']['privkey'], nacl.encoding.Base64Encoder)
+        self._pubkey = nacl.public.PublicKey(key['public']['pubkey'], nacl.encoding.Base64Encoder)
         self._cust_box = nacl.public.Box(self._privkey, self._pubkey)
-        ddpubkey = nacl.public.PublicKey(
-            key['public']['ddpubkey'],
-            encoder=nacl.encoding.Base64Encoder)
+        ddpubkey = nacl.public.PublicKey(key['public']['ddpubkey'], nacl.encoding.Base64Encoder)
         self._dd_box = nacl.public.Box(self._privkey, ddpubkey)
-        # publicpubkey = nacl.public.PublicKey(
-        #     key['public']['publicpubkey'],
-        #     encoder=nacl.encoding.Base64Encoder)
         self._hash = key['public']['hash'].encode()
         del key['public']
         # create a nacl.public.Box for each customers in a dict, e.g.
         # self.cust_boxes[a] for customer a
         self._cust_boxes = dict()
         for hash_ in key:
-            cust_public_key = nacl.public.PublicKey(
-                key[hash_]['pubkey'],
-                encoder=nacl.encoding.Base64Encoder)
-            self._cust_boxes[key[hash_]['r']] = nacl.public.Box(
-                self._privkey, cust_public_key)
+            cust_public_key = nacl.public.PublicKey(key[hash_]['pubkey'], nacl.encoding.Base64Encoder)
+            self._cust_boxes[key[hash_]['r']] = nacl.public.Box(self._privkey, cust_public_key)
 
-    def init_non_public(self, key):
+    def _init_non_public(self, key):
         self._is_public = False
-        self._sendmsg = self.sendmsg_non_public
-        self._privkey = nacl.public.PrivateKey(
-            key['privkey'],
-            encoder=nacl.encoding.Base64Encoder)
-        self._pubkey = nacl.public.PublicKey(
-            key['pubkey'],
-            encoder=nacl.encoding.Base64Encoder)
+        self._sendmsg = self._sendmsg_non_public
+        self._privkey = nacl.public.PrivateKey(key['privkey'], nacl.encoding.Base64Encoder)
+        self._pubkey = nacl.public.PublicKey(key['pubkey'], nacl.encoding.Base64Encoder)
         self._cust_box = nacl.public.Box(self._privkey, self._pubkey)
-        ddpubkey = nacl.public.PublicKey(
-            key['ddpubkey'],
-            encoder=nacl.encoding.Base64Encoder)
+        ddpubkey = nacl.public.PublicKey(key['ddpubkey'], nacl.encoding.Base64Encoder)
         self._dd_box = nacl.public.Box(self._privkey, ddpubkey)
-        publicpubkey = nacl.public.PublicKey(
-            key['publicpubkey'],
-            encoder=nacl.encoding.Base64Encoder)
+        publicpubkey = nacl.public.PublicKey(key['publicpubkey'], nacl.encoding.Base64Encoder)
         self._pub_box = nacl.public.Box(self._privkey, publicpubkey)
         self._hash = key['hash'].encode()
 
@@ -154,6 +141,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             self._IOLoop.start()
         except KeyboardInterrupt:
             if self._state != DD.S_EXIT:
+                logging.info("KeyboardInterrupt cauth")
                 self.shutdown()
 
     @abc.abstractmethod
@@ -182,15 +170,18 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         pass
 
     def shutdown(self):
-        logging.info('Shutting down')
         if self._state == DD.S_REGISTERED:
             for topic in self._sublist:
                 logging.debug('Unsubscribing from %s', str(topic))
-                with self._sendLock:
-                    self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+                self._send(DD.bCMD_UNSUB, [topic.encode()])
 
             logging.debug('Unregistering from broker, safe')
-            self._send(DD.bCMD_UNREG, [self._cookie])
+            if self._threaded:
+                self._threaded = False
+                self._send(DD.bCMD_UNREG, [self._cookie])
+                self._threaded = True
+            else:
+                self._send(DD.bCMD_UNREG, [self._cookie])
         else:
             logging.debug('Stopping register loop')
             self._register_loop.stop()
@@ -199,10 +190,15 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         self._heartbeat_loop.stop()
         logging.debug('Closing stream')
         self._stream.close()
+        if self._threaded:
+            self._pull_stream.close()
         logging.debug('Stopping IOloop')
         self._IOLoop.stop()
         logging.debug('Closing socket')
         self._dealer.close()
+        if self._threaded:
+            self._pullsock.close()
+            self._pushsock.close()
         logging.debug('Terminating context')
         self._ctx.term()
         logging.debug('Calling sys.exit')
@@ -215,8 +211,11 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         """
         if not msg:
             msg = []
-        with self._sendLock:
-            self._dealer.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
+        if self._threaded:
+            self._pushsock.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
+        else:
+            with self._sendLock:
+                self._dealer.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
 
     def _heartbeat(self):
         self._timeout += 1
@@ -233,8 +232,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             self._dealer = self._ctx.socket(zmq.DEALER)
             self._dealer.setsockopt(zmq.LINGER, 1000)
             self._dealer.connect(self._dealerurl)
-            self._stream = zmq.eventloop.zmqstream.ZMQStream(
-                self._dealer, self._IOLoop)
+            self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
             self._stream.on_recv(self._on_message)
 
             self._register_loop.start()
@@ -264,9 +262,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         else:
             logging.debug("Subscribing to %s %s", topic, scopestr)
 
-        self._send(
-            DD.bCMD_SUB, [
-                self._cookie, topic.encode(), scopestr.encode()])
+        self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
 
     def unsubscribe(self, topic, scope):
         """ Unsubscribe from a partiuclar topic and scope
@@ -293,9 +289,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             logging.warning("Not subscribed to %s %s !", topic, scopestr)
             return
 
-        self._send(
-            DD.bCMD_UNSUB, [
-                self._cookie, topic.encode(), scopestr.encode()])
+        self._send(DD.bCMD_UNSUB, [self._cookie, topic.encode(), scopestr.encode()])
 
     @staticmethod
     def check_scope(scope_):
@@ -335,12 +329,11 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         if isinstance(message, str):
             message = message.encode()
         from builtins import bytes
+
         message = bytes(message)
-        #print("Message type: ", type(message))
+        # print("Message type: ", type(message))
         encryptmsg = self._cust_box.encrypt(plaintext=message, nonce=self._get_nonce())
-        with self._sendLock:
-            self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic,
-                                         b'', encryptmsg.nonce + encryptmsg.ciphertext])
+        self._send(DD.bCMD_PUB, [self._cookie, topic, b'', encryptmsg.nonce + encryptmsg.ciphertext])
 
     def publish_public(self, topic, message):
         """ Publish a message to a public topic
@@ -360,9 +353,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             message = message.encode('utf8')
 
         encryptmsg = self._pub_box.encrypt(message, self._get_nonce())
-        with self._sendLock:
-            self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic,
-                                         b'', encryptmsg.nonce + encryptmsg.ciphertext])
+        self._send(DD.bCMD_PUB, [self._cookie, topic, b'', encryptmsg.nonce + encryptmsg.ciphertext])
 
     def sendmsg(self, dst, msg):
         """ Send a notification
@@ -381,7 +372,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
 
         self._sendmsg(dst, msg)
 
-    def sendmsg_non_public(self, dst, msg):
+    def _sendmsg_non_public(self, dst, msg):
         # send to a public or not ?
         dst_is_public = False
         try:
@@ -403,7 +394,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             msg = self._cust_box.encrypt(msg, self._get_nonce())
             self._send(DD.bCMD_SEND, [self._cookie, dst, msg.nonce + msg.ciphertext])
 
-    def sendmsg_public(self, dst, msg):
+    def _sendmsg_public(self, dst, msg):
         dst_is_public = True
         try:
             split = dst.split('.')
@@ -440,10 +431,15 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             self._dealer = self._ctx.socket(zmq.DEALER)
             self._dealer.setsockopt(zmq.LINGER, 1000)
             self._dealer.connect(self._dealerurl)
-            self._stream = zmq.eventloop.zmqstream.ZMQStream(
-                self._dealer, self._IOLoop)
+            self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
             self._stream.on_recv(self._on_message)
         self._send(DD.bCMD_ADDLCL, [self._hash])
+
+    def _on_pull(self, msg):
+        """ forward the message to the dealer, for thread safety
+            seems to be an issue with different threads polling() and send_multipart concurrently """
+        with self._sendLock:
+            self._dealer.send_multipart(msg)
 
     def _on_message(self, msg):
         """ callback triggered when a message is received """
@@ -467,8 +463,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         self._heartbeat_loop.start()
         self._send(DD.bCMD_PING, [self._cookie])
         for (topic, scopestr) in self._subscriptions:
-            self._send(
-                DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
+            self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
         self.on_reg()
 
     def _on_message_data(self, msg):
@@ -572,14 +567,13 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             self._sublist.append(tt)
         else:
             logging.error("Already subscribed to topic %s", topic)
-            with self._sendLock:
-                self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+            self._send(DD.bCMD_UNSUB, [topic.encode()])
 
     def _on_message_error(self, msg):
         import struct
 
         data = msg.pop(0)
-        error_code = struct.unpack('<i',data)[0]
+        error_code = struct.unpack('<i', data)[0]
         self.on_error(error_code, msg)
 
     def _get_nonce(self):
