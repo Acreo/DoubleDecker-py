@@ -211,10 +211,10 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         """
         if not msg:
             msg = []
-        if self._threaded:
-            self._pushsock.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
-        else:
-            with self._sendLock:
+        with self._sendLock:
+            if self._threaded:
+                self._pushsock.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
+            else:
                 self._dealer.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
 
     def _heartbeat(self):
@@ -438,8 +438,8 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
     def _on_pull(self, msg):
         """ forward the message to the dealer, for thread safety
             seems to be an issue with different threads polling() and send_multipart concurrently """
-        with self._sendLock:
-            self._dealer.send_multipart(msg)
+        #with self._sendLock:
+        self._dealer.send_multipart(msg)
 
     def _on_message(self, msg):
         """ callback triggered when a message is received """
