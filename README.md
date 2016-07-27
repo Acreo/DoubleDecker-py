@@ -31,9 +31,9 @@ ddkeys.py (input "a,b,c")
 #First you need to start a broker, you can use the C version available
 # at https://github.com/Acreo/DoubleDecker
 # start a client from tentant A, called cli1, connect to broker0
-ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli1 a
+ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli1
 # start a second client tentant A, called cli2, connect to broker0
-ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli2 a
+ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli2
 # now you can use the CLI interface to send notifications
 # from cli1 to cli2 or to subscribe and publish messages
 # to send a notification from cli1 to cli2

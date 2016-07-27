@@ -19,7 +19,7 @@ import zmq.eventloop.zmqstream
 import nacl.utils
 import nacl.public
 import nacl.encoding
-
+import threading
 from . import proto as DD
 
 class ClientSafe(with_metaclass(abc.ABCMeta)):
@@ -49,6 +49,7 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         self._cookie = ''
         self._subscriptions = list()
         self._name = name
+        self._sendLock = threading.Lock()
 
         if isinstance(name, str):
             self._name = name.encode()
@@ -185,8 +186,8 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         if self._state == DD.S_REGISTERED:
             for topic in self._sublist:
                 logging.debug('Unsubscribing from %s', str(topic))
-                self._dealer.send_multipart(
-                    [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+                with self._sendLock:
+                    self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
 
             logging.debug('Unregistering from broker, safe')
             self._send(DD.bCMD_UNREG, [self._cookie])
@@ -214,8 +215,8 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         """
         if not msg:
             msg = []
-
-        self._dealer.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
+        with self._sendLock:
+            self._dealer.send_multipart([DD.bPROTO_VERSION] + [command] + msg)
 
     def _heartbeat(self):
         self._timeout += 1
@@ -337,9 +338,9 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
         message = bytes(message)
         #print("Message type: ", type(message))
         encryptmsg = self._cust_box.encrypt(plaintext=message, nonce=self._get_nonce())
-
-        self._dealer.send_multipart(
-            [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg.nonce + encryptmsg.ciphertext])
+        with self._sendLock:
+            self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic,
+                                         b'', encryptmsg.nonce + encryptmsg.ciphertext])
 
     def publish_public(self, topic, message):
         """ Publish a message to a public topic
@@ -359,8 +360,9 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             message = message.encode('utf8')
 
         encryptmsg = self._pub_box.encrypt(message, self._get_nonce())
-        self._dealer.send_multipart(
-            [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg.nonce + encryptmsg.ciphertext])
+        with self._sendLock:
+            self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic,
+                                         b'', encryptmsg.nonce + encryptmsg.ciphertext])
 
     def sendmsg(self, dst, msg):
         """ Send a notification
@@ -431,15 +433,16 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
 
     def _ask_registration(self):
         """ initiate the registration with the broker """
-        self._dealer.setsockopt(zmq.LINGER, 0)
-        self._stream.close()
-        self._dealer.close()
-        self._dealer = self._ctx.socket(zmq.DEALER)
-        self._dealer.setsockopt(zmq.LINGER, 1000)
-        self._dealer.connect(self._dealerurl)
-        self._stream = zmq.eventloop.zmqstream.ZMQStream(
-            self._dealer, self._IOLoop)
-        self._stream.on_recv(self._on_message)
+        with self._sendLock:
+            self._dealer.setsockopt(zmq.LINGER, 0)
+            self._stream.close()
+            self._dealer.close()
+            self._dealer = self._ctx.socket(zmq.DEALER)
+            self._dealer.setsockopt(zmq.LINGER, 1000)
+            self._dealer.connect(self._dealerurl)
+            self._stream = zmq.eventloop.zmqstream.ZMQStream(
+                self._dealer, self._IOLoop)
+            self._stream.on_recv(self._on_message)
         self._send(DD.bCMD_ADDLCL, [self._hash])
 
     def _on_message(self, msg):
@@ -569,8 +572,8 @@ class ClientSafe(with_metaclass(abc.ABCMeta)):
             self._sublist.append(tt)
         else:
             logging.error("Already subscribed to topic %s", topic)
-            self._dealer.send_multipart(
-                [DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
+            with self._sendLock:
+                self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
 
     def _on_message_error(self, msg):
         import struct
