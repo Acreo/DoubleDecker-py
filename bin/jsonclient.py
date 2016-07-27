@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -74,8 +74,8 @@ class SecureCli(ClientSafe):
     def on_error(self, code, error):
         msg = dict()
         msg["type"] = "error"
-        msg["code"] = code.decode()
-        msg["error"] = error.decode()
+        msg["code"] = code
+        msg["error"] = str(error)
         print(json.dumps(msg))
 
     def on_pub(self, src, topic, data):
@@ -101,11 +101,23 @@ class SecureCli(ClientSafe):
 
         if "type" in res:
             if res['type'] == "notify":
-                self.sendmsg(res['dst'], json.dumps(res['data']))
+                if type(res['data']) is str:
+                    self.sendmsg(res['dst'], res['data'])
+                else:
+                    print("json.dumps")
+                    self.sendmsg(res['dst'], json.dumps(res['data']))
             elif res['type'] == "pub":
-                self.publish(res['topic'], json.dumps(res['data']))
+                if type(res['data']) is str:
+                    self.publish(res['topic'], res['data'])
+                else:
+                    print("json.dumps")
+                    self.publish(res['topic'], json.dumps(res['data']))
+                
             elif res['type'] == "sub":
-                self.subscribe(res['topc'], res['scope'])
+                if 'topc' in res:
+                    self.subscribe(res['topc'], res['scope'])
+                elif 'topic' in res:
+                    self.subscribe(res['topic'], res['scope'])
             else:
                 print(
                     json.dumps(
@@ -135,9 +147,6 @@ class SecureCli(ClientSafe):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generic message client")
     parser.add_argument('name', help="Identity of this client")
-    parser.add_argument(
-        'customer',
-     help="Name of the customer to get the keys (i.e. 'a' for the customer-a.json file)")
     parser.add_argument(
         '-d',
         "--dealer",
@@ -195,13 +204,9 @@ if __name__ == '__main__':
     genclient = SecureCli(
         name=args.name,
         dealerurl=args.dealer,
-        customer=args.customer,
         keyfile=args.keyfile)
 
     logging.info("Starting DoubleDecker example client")
     logging.info("See ddclient.py for how to send/recive and publish/subscribe")
-    res =  genclient._IOLoop.add_handler(
-        sys.stdin,
-        genclient.on_stdin,
-     genclient._IOLoop.READ)
+    res =  genclient._IOLoop.add_handler(sys.stdin, genclient.on_stdin, genclient._IOLoop.READ)
     genclient.run(args.topics)
