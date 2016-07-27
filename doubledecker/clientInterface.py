@@ -43,8 +43,7 @@ import zmq.eventloop.zmqstream
 
 from . import proto as DD
 
-
-class Client(with_metaclass(abc.ABCMeta)):
+class ClientInterface(with_metaclass(abc.ABCMeta)):
     E_REGFAIL = DD.E_REGFAIL
     E_NODST = DD.E_NODST
     E_VERSION = DD.E_VERSION
