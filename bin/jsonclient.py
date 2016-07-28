@@ -89,8 +89,8 @@ class SecureCli(ClientSafe):
             pass
         print(json.dumps(msg))
 
-    def on_stdin(self, fp, *kargs):
-        data = fp.readline()
+    def on_stdin(self, fp, *kargs):        
+        data = sys.stdin.readline()
         try:
             res = json.loads(data)
         except ValueError as e:
@@ -193,10 +193,7 @@ if __name__ == '__main__':
     else:
         logging.basicConfig(format='%(levelname)s:%(message)s', filename=args.logfile, level=numeric_level)
 
-    logging.info("Safe client")
     genclient = SecureCli(name=args.name, dealerurl=args.dealer, keyfile=args.keyfile, threaded=False)
-
-    logging.info("Starting DoubleDecker example client")
-    logging.info("See ddclient.py for how to send/recive and publish/subscribe")
-    res = genclient._IOLoop.add_handler(sys.stdin, genclient.on_stdin, genclient._IOLoop.READ)
+    logging.debug("Starting DoubleDecker example client")
+    logging.debug("See ddclient.py for how to send/recive and publish/subscribe")
     genclient.run(args.topics)
