@@ -64,6 +64,8 @@ class SecureCli(ClientSafe):
         print(json.dumps(msg))
         for topic in self.mytopics:
             self.subscribe(*topic)
+        self._IOLoop.remove_handler(sys.stdin.fileno())
+        self._IOLoop.add_handler(sys.stdin.fileno(),self.on_stdin,self._IOLoop.READ)
 
     def on_discon(self):
         msg = dict()
